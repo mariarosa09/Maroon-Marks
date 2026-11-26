@@ -9,6 +9,10 @@
   It computes only: nothing is saved and nothing leaves your browser.
 </p>
 
+<p align="center">
+  <a href="https://maroon-marks-tau.vercel.app"><strong>Open Maroon Marks</strong></a> · https://maroon-marks-tau.vercel.app
+</p>
+
 ---
 
 ## What it does
@@ -157,8 +161,9 @@ between 92–94 and 95–97, is flagged **Needs review** unless you choose a rou
 
 You don't need to install or build anything.
 
-- **Option 1:** open `source/index.html` in your browser by double-clicking it.
-- **Option 2:** open `prototype/maroon-marks.html`. It is the same app in one file, with the styles,
+- **Online:** open **https://maroon-marks-tau.vercel.app** in any browser.
+- **Locally:** open `source/index.html` in your browser by double-clicking it.
+- **Single file:** open `prototype/maroon-marks.html`. It is the same app in one file, with the styles,
   script and logo built in, which makes it easy to share.
 
 It works in current versions of Chrome, Edge, Firefox and Safari, on desktop and mobile.
