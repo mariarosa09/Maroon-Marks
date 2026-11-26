@@ -1,11 +1,11 @@
-# MSEUF Grade Calculator
+# Maroon Marks
 
 Compute-only grade and GPA calculator for Manuel S. Enverga University Foundation students.
 Built with HTML5, CSS3 and vanilla JavaScript. No libraries and no internet connection needed.
 
 ## Folders
-- `source/`: the project code (`index.html`, `style.css`, `script.js`). Open `index.html` in a browser.
-- `prototype/`: `mseuf-grade-calculator-prototype.html`, the same app in one self-contained file.
+- `source/`: the project code (`index.html`, `style.css`, `script.js`, plus the logo in `assets/`). Open `index.html` in a browser.
+- `prototype/`: `maroon-marks.html`, the same app in one self-contained file (logo built in).
 - `screenshots/`: captures of the earlier version. They still show the removed Dashboard, Subjects, History and Settings pages.
 
 ## Features
@@ -13,10 +13,11 @@ Built with HTML5, CSS3 and vanilla JavaScript. No libraries and no internet conn
   You can use Non-Zero-Based (50% Base, the default) or Zero-Based grading.
 - **Equal split of weights:** each category's weight is divided equally among its items.
   For example, Quizzes at 10% with 2 quizzes makes each quiz worth 5% of the grade.
-- Midterm/Final = Major Exams 60% (split equally among the exams) + Class Requirements 40%
-  (your own categories, 40% total at most).
+- Midterm/Final: Major Examinations is a fixed 60% category (split equally among the exams). Your own
+  categories share the remaining 40%. Press **Save** in the Midterm or Final tab to fill that grade into
+  the Final Subject Grade tab (and the What-If midterm).
 - Final Subject Grade = Midterm × 0.40 + Final × 0.60, converted with the MSEUF handbook scale.
-- **GPA Calculator:** enter units and a final subject grade (%) or a grade point for each subject.
+- **GPA Calculator:** pick each subject's grade point and enter its units.
   It shows your GPA weighted by units and a University Scholar (1.00–1.30) or College Scholar (>1.30–1.50) estimate.
 
 ## Data

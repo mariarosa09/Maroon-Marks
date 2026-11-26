@@ -1,5 +1,5 @@
 /* =========================================================
-   MSEUF Grade Calculator — application logic
+   Maroon Marks — MSEUF grade calculator: application logic
    Vanilla JS. Compute-only: everything lives in memory and is
    cleared when the page is refreshed or closed. Nothing is
    written to LocalStorage, cookies or any server.
@@ -183,7 +183,7 @@
   }
 
   /** Validates weighted categories; each category's weight is split equally among its items. */
-  function checkCategories(cats, extra, cap, errors, warnings, underMsg) {
+  function checkCategories(cats, extra, cap, errors, warnings, underMsg, overMsg) {
     let allocated = 0;
     cats.forEach((c, ci) => {
       const cname = catName(c, ci);
@@ -199,7 +199,7 @@
     allocated = snap(allocated);
     const remaining = snap(cap - allocated);
     if (allocated > cap) {
-      errors.push({ msg: `Category weights total ${allocated}%. They cannot exceed ${cap}%. Reduce them by ${snap(allocated - cap)}%.` });
+      errors.push({ msg: overMsg ? overMsg(allocated, snap(allocated - cap)) : `Category weights total ${allocated}%. They cannot exceed ${cap}%. Reduce them by ${snap(allocated - cap)}%.` });
       cats.forEach(c => errors.push({ cat: c.id, item: '', field: 'weight', msg: '' }));
     } else if (remaining > 0 && cats.length) {
       warnings.push(underMsg(allocated, remaining));
@@ -235,14 +235,15 @@
     const errors = [], warnings = [];
     const exams = d.exams || [], cats = d.cats || [];
 
-    // A. Major examinations (60%, split equally among exams)
+    // Major examinations: a fixed 60% category, split equally among exams
     if (!exams.length) errors.push({ msg: 'Add at least one major examination.' });
     exams.forEach((it, i) => errors.push(...validateItem(it, examLabel(it, i), d.extra, EXAMS)));
 
-    // B. Class requirements (40%, each category's weight split equally among its items)
+    // Other categories share the remaining 40%; each weight is split equally among its items
     const allocation = checkCategories(cats, d.extra, REQ_SHARE_PCT, errors, warnings,
-      (a, r) => `Class requirement weights total ${a}% — ${r}% of the 40% is not allocated yet, so the grade below is missing up to ${r} points.`);
-    if (!cats.length) warnings.push('No class requirement categories yet — the class requirement share (40%) counts as 0.');
+      (a, r) => `Categories total ${snap(EXAM_SHARE_PCT + a)}% (exams 60% + others ${a}%) — ${r}% is not allocated yet, so the grade below is missing up to ${r} points.`,
+      (a, over) => `Categories total ${snap(EXAM_SHARE_PCT + a)}% (exams 60% + others ${a}%). They cannot exceed 100%. Reduce the other categories by ${over}%.`);
+    if (!cats.length) warnings.push('Only Major Examinations so far — add your other categories (quizzes, activities, …) to fill the remaining 40%.');
 
     if (errors.length) return { ok: false, errors, warnings, allocation };
 
@@ -261,7 +262,7 @@
 
   const computeFSG = (m, f) => snap(m * FSG_MID + f * FSG_FIN);
 
-  /** rows: [{ name, units, pct, gp }] where gp is '' (compute from pct), a grade point, 'INC' or 'DRP'. */
+  /** rows: [{ name, units, gp }] where gp is a grade point, 'INC', 'DRP' or '' (not chosen yet). */
   function computeGPA(rows) {
     const included = [], excluded = [];
     rows.forEach((r, idx) => {
@@ -270,17 +271,8 @@
       let g = null, reason = null;
       if (r.gp === 'INC') reason = 'INC (Incomplete) — not a numerical grade point';
       else if (r.gp === 'DRP') reason = 'DRP (Dropped) — not a numerical grade point';
-      else if (!isBlank(r.gp)) { const e = gpEntry(Number(r.gp)); g = { gp: Number(r.gp), desc: e ? e.desc : '', fromPct: false }; }
-      else if (isBlank(r.pct)) reason = 'No grade entered';
-      else {
-        const p = num(r.pct);
-        if (!(p >= 0 && p <= 100)) reason = 'Grade must be between 0 and 100';
-        else {
-          const c = convertGrade(p);
-          if (c.review) reason = 'Grade is between handbook ranges — needs review';
-          else g = { gp: c.gp, desc: c.desc, fromPct: true, pct: p };
-        }
-      }
+      else if (isBlank(r.gp) || !gpEntry(Number(r.gp))) reason = 'No grade point selected';
+      else { const e = gpEntry(Number(r.gp)); g = { gp: e.gp, desc: e.desc }; }
       if (!reason && !(units > 0)) reason = 'Units must be greater than zero';
       if (reason) excluded.push({ r, idx, label, reason });
       else included.push({ r, idx, label, units, g, weighted: snap(g.gp * units) });
@@ -296,7 +288,7 @@
      --------------------------------------------------------- */
   const newItem = (name = '') => ({ id: uid(), name, earned: '', total: '' });
   const newCat = (name = '') => ({ id: uid(), name, weight: '', items: [newItem()] });
-  const newGpaRow = (pct = '') => ({ id: uid(), name: '', units: '3', pct, gp: '' });
+  const newGpaRow = (gp = '') => ({ id: uid(), name: '', units: '3', gp });
   const newInitialDraft = () => ({ method: 'nonzero', extra: false, cats: [newCat('')] });
   const newPeriodDraft = (examName) => ({ method: 'nonzero', extra: false, exams: [newItem(examName)], cats: [] });
   const defaultState = () => ({
@@ -308,6 +300,7 @@
       fsg: { midterm: '', final: '' },
       whatif: { midterm: '', final: '85', targetGP: '1.75', targetPct: '' }
     },
+    saved: { midterm: null, final: null },   // grades saved from the Midterm / Final tabs
     gpaRows: [newGpaRow()]
   });
   state = defaultState();
@@ -386,16 +379,16 @@
 
   const alertList = (type, title, items) => items.length ? `<div class="alert ${type}" role="${type === 'error' ? 'alert' : 'status'}"><strong>${title}</strong><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul></div>` : '';
 
-  function scaleCard() {
+  function scaleCard(showRounding = true) {
     return `<div class="card"><h3>MSEUF grading scale</h3>
       <div class="table-wrap"><table class="scale-table"><thead><tr><th>Grade</th><th class="num">%</th><th>Description</th></tr></thead><tbody>
       ${SCALE.map(s => `<tr><td>${fmtGP(s.gp)}${s.note ? '*' : ''}</td><td class="num">${s.min}–${s.max}</td><td>${s.desc}</td></tr>`).join('')}
       <tr><td>5.00</td><td class="num">74 and below</td><td>Failed</td></tr><tr><td>INC</td><td class="num">—</td><td>Incomplete</td></tr><tr><td>DRP</td><td class="num">—</td><td>Dropped</td></tr>
       </tbody></table></div>
       <p class="tiny muted">* Lowest grade for the graduate school with a unit credit.</p>
-      <label class="field mt"><span>Rounding (percentage → grade point)</span>
+      ${showRounding ? `<label class="field mt"><span>Rounding (percentage → grade point)</span>
         <select data-setting="rounding">${Object.keys(ROUNDING).map(k => `<option value="${k}" ${state.settings.rounding === k ? 'selected' : ''}>${ROUNDING[k]}</option>`).join('')}</select>
-        <small>The handbook lists whole-number ranges only. Confirm MSEUF's official rounding policy before relying on a rounded result.</small></label>
+        <small>The handbook lists whole-number ranges only. Confirm MSEUF's official rounding policy before relying on a rounded result.</small></label>` : ''}
     </div>`;
   }
 
@@ -421,7 +414,7 @@
     $$('.view').forEach(v => v.classList.toggle('active', v.id === `view-${view}`));
     const nav = NAV.find(n => n.id === view);
     $('#pageTitle').textContent = nav.label;
-    document.title = `${nav.label} · MSEUF Grade Calculator`;
+    document.title = `${nav.label} · Maroon Marks`;
     if (view === 'gpa') renderGPA(); else renderCalculator(sub);
   }
 
@@ -464,11 +457,25 @@
     </div>`;
   }
 
-  function catEditor(calc, cats, emptyText) {
+  /** Major examinations shown as a fixed category (60% of the grade, not removable). */
+  function examCard(calc, d) {
+    return `<div class="cat-card fixed">
+      <div class="cat-head">
+        <label class="field f-name"><span>Category 1</span><input type="text" value="Major Examinations" readonly tabindex="-1" aria-readonly="true"></label>
+        <label class="field"><span>Category weight</span><div class="input-suffix" data-suffix="%"><input type="number" value="${EXAM_SHARE_PCT}" readonly tabindex="-1" aria-readonly="true"></div></label>
+        <span class="lock-tag" title="Fixed by the MSEUF grading system">Fixed</span>
+      </div>
+      <div class="cat-share" data-share="${EXAMS}"></div>
+      <div class="item-list">${d.exams.map((it, i) => itemRow(calc, EXAMS, it, `Exam ${i + 1}`, true)).join('') || '<div class="empty-inline">Add at least one major examination.</div>'}</div>
+      <div><button class="btn sm secondary" data-action="add-item" data-calc="${calc}" data-cat="${EXAMS}">${icon('plus')}Add examination</button></div>
+    </div>`;
+  }
+
+  function catEditor(calc, cats, emptyText, offset = 0) {
     if (!cats.length) return `<div class="empty-inline">${emptyText}</div>`;
     return `<div class="cat-list">${cats.map((c, ci) => `<div class="cat-card">
       <div class="cat-head">
-        <label class="field f-name"><span>Category ${ci + 1}</span><input type="text" list="dl-categories" value="${esc(c.name)}" placeholder="e.g. Quizzes" ${dataAttrs(calc, c.id, '', 'name')} autocomplete="off"></label>
+        <label class="field f-name"><span>Category ${ci + 1 + offset}</span><input type="text" list="dl-categories" value="${esc(c.name)}" placeholder="e.g. Quizzes" ${dataAttrs(calc, c.id, '', 'name')} autocomplete="off"></label>
         <label class="field"><span>Category weight</span><div class="input-suffix" data-suffix="%"><input type="number" inputmode="decimal" step="any" min="0" value="${esc(c.weight)}" placeholder="e.g. 10" ${dataAttrs(calc, c.id, '', 'weight')}></div></label>
         <button class="icon-btn" data-action="remove-cat" data-calc="${calc}" data-cat="${c.id}" aria-label="Remove ${esc(catName(c, ci))}" title="Remove category">${icon('trash')}</button>
       </div>
@@ -507,18 +514,12 @@
     const title = calc === 'midterm' ? 'Midterm' : 'Final';
     return `<div class="calc-layout">
       <div class="stack"><div class="card">
-        <div class="card-head"><div><h2>${title} Grade Calculator</h2><p class="muted small">${title} Grade = Major Examinations (60%) + Class Requirements (40%). Every weight is split equally among its items.</p></div></div>
+        <div class="card-head"><div><h2>${title} Grade Calculator</h2><p class="muted small">Major Examinations are fixed at 60%; your other categories share the remaining 40%. Every category's weight is split equally among its items.</p></div></div>
         ${methodPicker(calc, d.method)}
-        <div class="row mt">${extraToggle(calc, d)}</div>
-
-        <div class="section-label"><h3>A. Major Examinations</h3><span class="tag">60% of grade</span></div>
-        <div class="cat-share" data-share="${EXAMS}"></div>
-        <div class="item-list">${d.exams.map((it, i) => itemRow(calc, EXAMS, it, `Exam ${i + 1}`, true)).join('') || '<div class="empty-inline">Add at least one major examination.</div>'}</div>
-        <div class="row mt"><button class="btn secondary" data-action="add-item" data-calc="${calc}" data-cat="${EXAMS}">${icon('plus')}Add examination</button></div>
-
-        <div class="section-label"><h3>B. Class Requirements</h3><span class="tag">40% of grade</span></div>
+        <div class="section-label"><h3>Categories</h3>${extraToggle(calc, d)}</div>
         <div class="alloc" id="alloc-${calc}"></div>
-        ${catEditor(calc, d.cats, 'No class requirement categories yet. Add your own below — you set each weight.')}
+        <div class="cat-list">${examCard(calc, d)}
+        ${catEditor(calc, d.cats, 'Add your class requirement categories (quizzes, activities, …) below — they share the remaining 40%.', 1)}</div>
         <div class="row mt"><button class="btn secondary" data-action="add-cat" data-calc="${calc}">${icon('plus')}Add category</button>${catChips(calc)}</div>
         <div class="row mt"><button class="btn ghost sm" data-action="reset-calc" data-calc="${calc}">Clear calculator</button></div>
       </div></div>
@@ -579,12 +580,13 @@
   function updateAlloc(calc, a) {
     const box = $(`#alloc-${calc}`);
     if (!box) return;
-    const cap = a.max;
-    box.className = `alloc ${a.allocated > cap ? 'over' : a.allocated === cap ? 'full' : ''}`;
+    const base = calc === 'initial' ? 0 : EXAM_SHARE_PCT; // exams are a fixed 60% category
+    const cap = snap(base + a.max), allocated = snap(base + a.allocated);
+    box.className = `alloc ${allocated > cap ? 'over' : allocated === cap ? 'full' : ''}`;
     const d = state.drafts[calc];
     const canDistribute = a.remaining > 0 && d.cats.length > 0;
-    box.innerHTML = `<div class="row between"><strong class="small">Allocated: ${a.allocated}% of ${cap}%</strong><span class="small ${a.allocated > cap ? '' : 'muted'}">${a.allocated > cap ? `Over by ${snap(a.allocated - cap)}%` : `Remaining: ${a.remaining}%`}</span></div>
-      <div class="alloc-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${cap}" aria-valuenow="${a.allocated}" aria-label="Category weight allocated"><div style="width:${Math.min(100, a.allocated / cap * 100)}%"></div></div>
+    box.innerHTML = `<div class="row between"><strong class="small">Allocated: ${allocated}% of ${cap}%${base ? ` <span class="muted">(exams ${base}% + others ${a.allocated}%)</span>` : ''}</strong><span class="small ${allocated > cap ? '' : 'muted'}">${allocated > cap ? `Over by ${snap(allocated - cap)}%` : `Remaining: ${a.remaining}%`}</span></div>
+      <div class="alloc-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${cap}" aria-valuenow="${allocated}" aria-label="Category weight allocated"><div style="width:${Math.min(100, allocated / cap * 100)}%"></div></div>
       ${canDistribute ? `<button class="btn sm ghost" data-action="distribute" data-calc="${calc}">Distribute remaining ${a.remaining}%…</button>` : ''}`;
   }
 
@@ -636,27 +638,35 @@
       ${alertList('warn', 'Heads up', res.warnings.map(esc))}
       <dl class="kv">
         <dt>Major examinations (60%)</dt><dd>${fmt(res.examContribution)} pts</dd>
-        <dt>Class requirements (${res.allocation.allocated}% of 40%)</dt><dd>${fmt(res.reqContribution)} pts</dd>
+        <dt>Other categories (${res.allocation.allocated}% of 40%)</dt><dd>${fmt(res.reqContribution)} pts</dd>
       </dl>
       ${breakdownTable([examGroup].concat(res.catRows), 'Total', snap(EXAM_SHARE_PCT + res.allocation.allocated), res.grade)}
       <div class="steps"><h4>Step-by-step</h4><ol>
         <li>Each item's percentage: ${esc(METHODS[res.method].label)}<code class="formula">Percentage = ${mf}</code></li>
         ${groupStep(examGroup)}
         ${res.catRows.map(groupStep).join('')}
-        <li>${title} grade = exam points + class requirement points<code class="formula">${fmt(res.examContribution)} + ${fmt(res.reqContribution)} = ${fmt(res.grade)}%</code></li>
+        <li>${title} grade = sum of all category points<code class="formula">${[res.examContribution].concat(res.catRows.map(c => c.contribution)).map(v => fmt(v)).join(' + ')} = ${fmt(res.grade)}%</code></li>
       </ol></div>
+      ${saveBar(calc, title, res.grade)}
       ${equivalentBlock(res.grade)}
       <p class="tiny muted">The handbook scale officially applies to final subject grades; the equivalent above is for reference only.</p>`;
   }
 
-  /* ---- Pull a result from another calculator (in memory) ---- */
-  function useCalcButton(kind, into) {
-    const r = computePeriod(state.drafts[kind]);
-    const name = kind === 'midterm' ? 'Midterm' : 'Final';
-    return r.ok
-      ? `<button class="btn sm secondary" data-action="use-calc" data-kind="${kind}" data-into="${into}">Use ${name} calculator result (${fmt(r.grade)}%)</button>`
-      : `<span class="tiny muted">${name} calculator: no result yet</span>`;
+  /** Save the Midterm / Final result so it fills the Final Subject Grade tab (memory only). */
+  function saveBar(calc, title, grade) {
+    const saved = state.saved[calc];
+    const same = saved !== null && snap(saved) === snap(grade);
+    const dest = calc === 'midterm' ? 'Final Subject Grade and What-If' : 'Final Subject Grade';
+    const note = saved === null ? `Fills the ${title.toLowerCase()} grade in ${dest}.`
+      : same ? `Filled in ${dest}.` : `Saved value is ${fmt(saved)}% — save again to update it.`;
+    return `<div class="save-bar"><button class="btn ${same ? 'secondary' : ''}" data-action="save-period" data-calc="${calc}">${same ? '✓ Saved' : `Save ${title.toLowerCase()} grade`}</button><span class="tiny muted">${note}</span></div>`;
   }
+
+  const savedHint = (kind, value) => {
+    const saved = state.saved[kind];
+    if (saved === null) return `<small>Tip: press “Save” in the ${kind === 'midterm' ? 'Midterm' : 'Final'} Grade tab to fill this in automatically.</small>`;
+    return String(saved) === str(value).trim() ? `<small class="ok-text">✓ From the ${kind === 'midterm' ? 'Midterm' : 'Final'} Grade tab</small>` : `<small>Saved ${kind} grade: ${fmt(saved)}%</small>`;
+  };
 
   /* ---- Final subject grade ---- */
   function fsgView() {
@@ -665,10 +675,9 @@
       <div class="stack"><div class="card">
         <div class="card-head"><div><h2>Final Subject Grade</h2><p class="muted small">Final Subject Grade = (Midterm × 40%) + (Final × 60%). The initial grade is not included.</p></div></div>
         <div class="form-grid">
-          <label class="field"><span>Midterm grade (%)</span><input type="number" inputmode="decimal" step="any" min="0" max="100" data-fsg="midterm" value="${esc(d.midterm)}"></label>
-          <label class="field"><span>Final grade (%)</span><input type="number" inputmode="decimal" step="any" min="0" max="100" data-fsg="final" value="${esc(d.final)}"></label>
+          <label class="field"><span>Midterm grade (%)</span><input type="number" inputmode="decimal" step="any" min="0" max="100" data-fsg="midterm" value="${esc(d.midterm)}">${savedHint('midterm', d.midterm)}</label>
+          <label class="field"><span>Final grade (%)</span><input type="number" inputmode="decimal" step="any" min="0" max="100" data-fsg="final" value="${esc(d.final)}">${savedHint('final', d.final)}</label>
         </div>
-        <div class="row mt">${useCalcButton('midterm', 'fsg')}${useCalcButton('final', 'fsg')}</div>
       </div>
       ${scaleCard()}</div>
       <div class="card result-card" aria-live="polite" id="results-fsg"></div>
@@ -701,7 +710,7 @@
         <li>Final subject grade<code class="formula">${fmt(snap(m * FSG_MID))} + ${fmt(snap(f * FSG_FIN))} = ${fmt(fsg)}%</code></li>
         ${c.review ? '' : `<li>Convert using the MSEUF scale<code class="formula">${fmt(c.used, Number.isInteger(c.used) ? 0 : 2)}% → ${c.range} → ${fmtGP(c.gp)} (${esc(c.desc)})</code></li>`}
       </ol></div>
-      <div class="row mt"><button class="btn secondary" data-action="fsg-to-gpa">${icon('plus')}Add to GPA calculator</button></div>`;
+      ${c.review ? '' : `<div class="row mt"><button class="btn secondary" data-action="fsg-to-gpa">${icon('plus')}Add ${fmtGP(c.gp)} to GPA calculator</button></div>`}`;
   }
 
   /* ---- What-if ---- */
@@ -712,8 +721,7 @@
         <div class="estimate-banner">${icon('target')} Projection mode — every value here is an estimate, not an actual grade.</div>
         <div class="card-head"><div><h2>Grade Projection &amp; What-If</h2><p class="muted small">Final Subject Grade = (Midterm × 0.40) + (Final × 0.60)</p></div></div>
         <div class="form-grid">
-          <label class="field"><span>Current midterm grade (%)</span><input type="number" inputmode="decimal" step="any" min="0" max="100" data-wf="midterm" value="${esc(d.midterm)}"></label>
-          <div class="field" style="justify-content:flex-end">${useCalcButton('midterm', 'whatif')}</div>
+          <label class="field full"><span>Current midterm grade (%)</span><input type="number" inputmode="decimal" step="any" min="0" max="100" data-wf="midterm" value="${esc(d.midterm)}">${savedHint('midterm', d.midterm)}</label>
           <div class="field full"><span>Estimated final grade (%)</span>
             <div class="slider-row"><input type="range" min="0" max="100" step="0.5" data-wf="final" value="${esc(num(d.final) || 0)}" aria-label="Estimated final grade slider"><input type="number" inputmode="decimal" step="any" min="0" max="100" data-wf="final" value="${esc(d.final)}" aria-label="Estimated final grade"></div>
           </div>
@@ -772,9 +780,8 @@
     return `<div class="gpa-row">
       <label class="field"><span>Subject ${i + 1}</span><input type="text" value="${esc(r.name)}" placeholder="e.g. CSAL102 (optional)" maxlength="60" ${a('name')}></label>
       <label class="field"><span>Units</span><input type="number" inputmode="decimal" step="0.5" min="0" value="${esc(r.units)}" ${a('units')}></label>
-      <label class="field"><span>Final subject grade (%)</span><input type="number" inputmode="decimal" step="any" min="0" max="100" value="${esc(r.pct)}" ${a('pct')} ${isBlank(r.gp) ? '' : 'disabled'}></label>
       <label class="field"><span>Grade point</span><select ${a('gp')}>
-        <option value="" ${isBlank(r.gp) ? 'selected' : ''}>Compute from %</option>
+        <option value="" ${isBlank(r.gp) ? 'selected' : ''}>Select grade point</option>
         ${GP_CHOICES.map(gp => `<option value="${gp}" ${String(r.gp) === String(gp) ? 'selected' : ''}>${fmtGP(gp)} — ${gpEntry(gp).desc}</option>`).join('')}
         <option value="INC" ${r.gp === 'INC' ? 'selected' : ''}>INC — Incomplete</option>
         <option value="DRP" ${r.gp === 'DRP' ? 'selected' : ''}>DRP — Dropped</option>
@@ -789,12 +796,12 @@
     const rows = state.gpaRows;
     el.innerHTML = `<div class="calc-layout">
       <div class="stack"><div class="card">
-        <div class="card-head"><div><h2>GPA Calculator</h2><p class="muted small">GPA = Σ(Grade point × Units) ÷ Total units. For each subject, enter its final subject grade (%) or pick its grade point directly.</p></div></div>
+        <div class="card-head"><div><h2>GPA Calculator</h2><p class="muted small">GPA = Σ(Grade point × Units) ÷ Total units. For each subject, enter its units and pick its grade point.</p></div></div>
         ${rows.length ? `<div class="gpa-list">${rows.map(gpaRowHtml).join('')}</div>` : '<div class="empty-inline">No subjects yet. Add one below.</div>'}
         <div class="row mt"><button class="btn secondary" data-action="add-gpa-row">${icon('plus')}Add subject</button>
           ${rows.length ? '<button class="btn ghost sm" data-action="clear-gpa">Clear all</button>' : ''}</div>
       </div>
-      ${scaleCard()}</div>
+      ${scaleCard(false)}</div>
       <div class="card result-card" aria-live="polite" id="results-gpa"></div>
     </div>`;
     updateGPA();
@@ -806,7 +813,7 @@
     const res = computeGPA(state.gpaRows);
     res.included.forEach(x => {
       const out = $(`[data-gpa-out="${x.r.id}"]`);
-      if (out) out.innerHTML = `${x.g.fromPct ? `${fmt(x.g.pct)}% → ` : ''}${gradeBadge(x.g)} × ${x.units} unit${x.units === 1 ? '' : 's'} = <strong>${fmt(x.weighted)}</strong>`;
+      if (out) out.innerHTML = `${gradeBadge(x.g)} × ${x.units} unit${x.units === 1 ? '' : 's'} = <strong>${fmt(x.weighted)}</strong>`;
     });
     res.excluded.forEach(x => {
       const out = $(`[data-gpa-out="${x.r.id}"]`);
@@ -814,7 +821,7 @@
     });
     const gpaF = fmtGPA(res.gpa);
     if (res.gpa === null) {
-      box.innerHTML = `<h2>GPA</h2><p class="muted small">Enter at least one subject with units and a grade to compute your GPA.</p>`;
+      box.innerHTML = `<h2>GPA</h2><p class="muted small">Pick a grade point and enter units for at least one subject to compute your GPA.</p>`;
       return;
     }
     const computation = `(${res.included.map(x => `${fmtGP(x.g.gp)}×${x.units}`).join(' + ')}) ÷ ${res.totalUnits} = ${fmt(res.totalWeighted)} ÷ ${res.totalUnits} = ${gpaF.text}`;
@@ -905,20 +912,24 @@
         break;
       }
       case 'distribute': distribute(calc); break;
-      case 'use-calc': {
-        const r = computePeriod(state.drafts[t.dataset.kind]);
+      case 'save-period': {
+        const r = computePeriod(d);
         if (!r.ok) return;
-        state.drafts[t.dataset.into][t.dataset.kind] = String(r.grade);
-        render();
+        state.saved[calc] = r.grade;
+        state.drafts.fsg[calc] = String(r.grade);
+        if (calc === 'midterm') state.drafts.whatif.midterm = String(r.grade);
+        toast(`${calc === 'midterm' ? 'Midterm' : 'Final'} grade ${fmt(r.grade)}% saved to Final Subject Grade.`, 'success');
+        updateCalcResults(calc);
         break;
       }
       case 'fsg-to-gpa': {
         const { errors, m, f } = readFsg();
         if (errors.length) return;
-        const fsg = computeFSG(m, f);
-        const blank = state.gpaRows.find(r => isBlank(r.name) && isBlank(r.pct) && isBlank(r.gp));
-        if (blank) blank.pct = String(fsg); else state.gpaRows.push(newGpaRow(String(fsg)));
-        toast(`Added ${fmt(fsg)}% to the GPA calculator.`, 'success');
+        const c = convertGrade(computeFSG(m, f));
+        if (c.review) { toast('This grade falls between handbook ranges — choose a rounding option first.', 'error'); return; }
+        const blank = state.gpaRows.find(r => isBlank(r.name) && isBlank(r.gp));
+        if (blank) blank.gp = String(c.gp); else state.gpaRows.push(newGpaRow(String(c.gp)));
+        toast(`Added grade point ${fmtGP(c.gp)} to the GPA calculator.`, 'success');
         break;
       }
       case 'add-gpa-row': {
@@ -963,10 +974,6 @@
       const row = state.gpaRows.find(r => r.id === t.dataset.gpaId);
       if (!row) return;
       row[t.dataset.gpaField] = t.value;
-      if (t.dataset.gpaField === 'gp') {
-        const pctInput = $(`[data-gpa-id="${row.id}"][data-gpa-field="pct"]`);
-        if (pctInput) pctInput.disabled = !isBlank(row.gp);
-      }
       updateGPA();
     }
   }
