@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7a0f14">
+  <meta name="description" content="MSEUF Grade Calculator — compute initial, midterm, final and final subject grades, GPA and scholar classification.">
+  <title>MSEUF Grade Calculator</title>
+  <style>
+/* =========================================================
+   MSEUF Grade Calculator — styles
+   Palette: MSEUF Maroon & White (institutional colors)
+   ========================================================= */
+:root {
+  --maroon: #7a0f14;
+  --maroon-800: #5e0b0f;
+  --maroon-900: #430709;
+  --maroon-600: #96202a;
+  --maroon-100: #f6e6e7;
+  --maroon-50: #fbf4f4;
+  --white: #ffffff;
+
+  --ink: #1d1b1c;
+  --ink-2: #4a4546;
+  --ink-3: #736c6d;
+  --line: #e7e1e1;
+  --surface: #ffffff;
+  --bg: #f7f4f4;
+
+  /* Status colors (always paired with text labels) */
+  --excellent: #17663f;
+  --excellent-bg: #e6f4ec;
+  --pass: #1f4f7a;
+  --pass-bg: #e7eff7;
+  --fail: #b3261e;
+  --fail-bg: #fdecea;
+  --inc: #8a5300;
+  --inc-bg: #fff3dc;
+  --drp: #4b4b4b;
+  --drp-bg: #ececec;
+  --review: #6b4a00;
+  --review-bg: #fff8e1;
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 1px 2px rgba(40, 10, 12, .06), 0 4px 16px rgba(40, 10, 12, .06);
+  --font: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sidebar: 248px;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+}
+h1, h2, h3, h4 { line-height: 1.25; margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--maroon); }
+.skip-link { position: absolute; left: -999px; top: 8px; background: var(--maroon); color: #fff; padding: 8px 12px; border-radius: 8px; z-index: 100; }
+.skip-link:focus { left: 8px; }
+:focus-visible { outline: 3px solid rgba(122, 15, 20, .45); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- Layout ---------- */
+.app { display: flex; min-height: 100vh; }
+.sidebar {
+  position: fixed; inset: 0 auto 0 0; width: var(--sidebar);
+  background: linear-gradient(180deg, var(--maroon) 0%, var(--maroon-900) 100%);
+  color: #fff; display: flex; flex-direction: column; padding: 20px 14px; z-index: 20;
+}
+.brand { display: flex; gap: 12px; align-items: center; padding: 4px 8px 22px; }
+.brand-mark {
+  width: 42px; height: 42px; border-radius: 12px; background: #fff; color: var(--maroon);
+  display: grid; place-items: center; font-weight: 800; letter-spacing: .5px;
+}
+.brand-mark.sm { width: 32px; height: 32px; border-radius: 9px; font-size: 13px; background: var(--maroon); color: #fff; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-text strong { font-size: 18px; letter-spacing: 1px; }
+.brand-text span { font-size: 13px; opacity: .85; }
+.nav { display: flex; flex-direction: column; gap: 4px; }
+.nav a {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px;
+  color: rgba(255, 255, 255, .86); text-decoration: none; font-weight: 500; transition: background .15s;
+}
+.nav a:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+.nav a.active { background: #fff; color: var(--maroon); }
+.nav svg, .bottom-nav svg { width: 20px; height: 20px; flex: none; }
+.sidebar-foot { margin-top: auto; font-size: 12px; opacity: .7; padding: 0 8px; }
+
+.content { flex: 1; margin-left: var(--sidebar); min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 16px;
+  padding: 14px 28px; background: rgba(247, 244, 244, .92); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar-brand { display: none; align-items: center; gap: 10px; }
+.page-title { font-size: 22px; flex: 1; }
+main { padding: 24px 28px 40px; flex: 1; outline: none; }
+.view { display: none; animation: fadeIn .25s ease; }
+.view.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.app-footer { font-size: 12px; color: var(--ink-3); padding: 0 28px 24px; }
+
+.bottom-nav { display: none; }
+
+/* ---------- Generic components ---------- */
+.grid { display: grid; gap: 16px; }
+.grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.span-2 { grid-column: span 2; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.row.between { justify-content: space-between; }
+.mt { margin-top: 16px; }
+.muted { color: var(--ink-3); }
+.small { font-size: 13px; }
+.tiny { font-size: 12px; }
+.mono { font-family: var(--mono); }
+.nowrap { white-space: nowrap; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 20px;
+}
+.card h2 { font-size: 17px; margin-bottom: 4px; }
+.card h3 { font-size: 15px; margin-bottom: 8px; }
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.card-head p { margin: 2px 0 0; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: 1px solid transparent; border-radius: 10px; padding: 9px 16px; cursor: pointer;
+  font-weight: 600; font-size: 14px; background: var(--maroon); color: #fff; transition: background .15s, transform .05s;
+  text-decoration: none; min-height: 40px;
+}
+.btn:hover { background: var(--maroon-800); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.secondary { background: #fff; color: var(--maroon); border-color: var(--maroon-100); }
+.btn.secondary:hover { background: var(--maroon-50); }
+.btn.ghost { background: transparent; color: var(--ink-2); border-color: var(--line); }
+.btn.ghost:hover { background: #f1eded; }
+.btn.danger { background: var(--fail); }
+.btn.danger:hover { background: #8f1d17; }
+.btn.sm { padding: 5px 10px; min-height: 32px; font-size: 13px; border-radius: 8px; }
+.btn svg { width: 16px; height: 16px; }
+.icon-btn {
+  border: 1px solid var(--line); background: #fff; width: 36px; height: 36px; border-radius: 9px;
+  cursor: pointer; display: inline-grid; place-items: center; color: var(--ink-2); font-size: 20px; line-height: 1; flex: none;
+}
+.icon-btn:hover { background: var(--fail-bg); color: var(--fail); border-color: #f3c7c3; }
+.icon-btn svg { width: 16px; height: 16px; }
+
+/* Forms */
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field > span, .field > label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.field small { color: var(--ink-3); font-size: 12px; }
+input[type=text], input[type=number], input[type=search], select, textarea {
+  width: 100%; border: 1px solid #d9d1d1; border-radius: 9px; padding: 8px 11px; background: #fff; min-height: 40px;
+  transition: border-color .15s, box-shadow .15s;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--maroon); box-shadow: 0 0 0 3px rgba(122, 15, 20, .14); }
+input.invalid, select.invalid { border-color: var(--fail); background: #fff8f7; }
+input[type=checkbox], input[type=radio] { accent-color: var(--maroon); width: 17px; height: 17px; }
+input[type=range] { width: 100%; accent-color: var(--maroon); }
+.check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.form-grid .full { grid-column: 1 / -1; }
+.input-suffix { position: relative; }
+.input-suffix input { padding-right: 28px; }
+.input-suffix::after { content: attr(data-suffix); position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--ink-3); font-size: 13px; pointer-events: none; }
+
+/* Tabs */
+.tabs { display: flex; gap: 6px; overflow-x: auto; padding: 4px; background: #fff; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 18px; scrollbar-width: thin; }
+.tab {
+  border: none; background: transparent; padding: 9px 14px; border-radius: 9px; cursor: pointer;
+  font-weight: 600; color: var(--ink-2); white-space: nowrap; font-size: 14px; text-decoration: none;
+}
+.tab:hover { background: var(--maroon-50); color: var(--maroon); }
+.tab.active { background: var(--maroon); color: #fff; }
+
+/* Method picker */
+.method-picker { border: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.method-picker legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 6px; padding: 0; }
+.seg {
+  display: flex; gap: 10px; align-items: flex-start; border: 1.5px solid var(--line); border-radius: 12px; padding: 12px;
+  cursor: pointer; background: #fff; transition: border-color .15s, background .15s;
+}
+.seg:hover { border-color: var(--maroon-600); }
+.seg.active { border-color: var(--maroon); background: var(--maroon-50); }
+.seg input { margin-top: 2px; }
+.seg strong { display: block; font-size: 14px; }
+.seg small { display: block; font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.seg .default-tag { font-family: var(--font); font-size: 11px; font-weight: 700; color: var(--maroon); text-transform: uppercase; letter-spacing: .4px; }
+
+/* Component editor rows */
+.section-label { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin: 18px 0 10px; }
+.section-label h3 { font-size: 15px; margin: 0; }
+.section-label .tag { font-size: 12px; font-weight: 700; color: var(--maroon); background: var(--maroon-50); border: 1px solid var(--maroon-100); padding: 3px 8px; border-radius: 999px; }
+.cat-list { display: flex; flex-direction: column; gap: 12px; }
+.cat-card { border: 1px solid var(--line); border-radius: 12px; background: #fcfbfb; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.cat-head { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.cat-share { font-size: 12.5px; font-weight: 600; color: var(--maroon); }
+.cat-share:empty { display: none; }
+.item-list { display: flex; flex-direction: column; gap: 6px; }
+.item-row {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 8px; align-items: end; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+}
+.item-row.named { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; }
+.item-row .field > span { font-size: 12px; }
+.item-label { font-size: 13.5px; font-weight: 600; color: var(--ink-2); align-self: center; padding-top: 18px; overflow-wrap: anywhere; }
+.row-pct { font-size: 12px; color: var(--ink-3); grid-column: 1 / -1; margin-top: -2px; }
+.row-pct:empty { display: none; }
+.gpa-list { display: flex; flex-direction: column; gap: 8px; }
+.gpa-row {
+  display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, .7fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: 8px; align-items: end; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: #fcfbfb;
+}
+.gpa-row .field > span { font-size: 12px; }
+.gpa-out { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-2); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.gpa-out:empty { display: none; }
+input:disabled { background: #f3f1f1; color: var(--ink-3); }
+.empty-inline { padding: 18px; text-align: center; border: 1.5px dashed var(--line); border-radius: 12px; color: var(--ink-3); background: #fff; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #fff; color: var(--ink-2);
+  padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+button.chip:hover { border-color: var(--maroon); color: var(--maroon); }
+.chip.active { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+
+/* Allocation meter */
+.alloc { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: #fff; margin-bottom: 10px; }
+.alloc-bar { height: 10px; border-radius: 999px; background: #efe9e9; overflow: hidden; margin: 8px 0 6px; }
+.alloc-bar > div { height: 100%; background: var(--maroon); border-radius: inherit; transition: width .3s ease; }
+.alloc.over .alloc-bar > div { background: var(--fail); }
+.alloc.full .alloc-bar > div { background: var(--excellent); }
+
+/* Results */
+.calc-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.result-card { position: sticky; top: 84px; }
+.result-big { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.result-big .num { font-size: 44px; font-weight: 800; color: var(--maroon); letter-spacing: -1px; line-height: 1.05; }
+.result-big .unit { font-size: 20px; font-weight: 700; color: var(--maroon); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; margin: 12px 0; }
+.kv dt { color: var(--ink-3); }
+.kv dd { margin: 0; font-weight: 600; text-align: right; }
+.steps { background: var(--maroon-50); border: 1px solid var(--maroon-100); border-radius: 12px; padding: 12px 14px; margin-top: 12px; }
+.steps h4 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--maroon); margin-bottom: 8px; }
+.steps ol { margin: 0; padding-left: 18px; }
+.steps li { margin: 4px 0; font-size: 13.5px; }
+.formula { font-family: var(--mono); font-size: 12.5px; background: #fff; border: 1px solid var(--maroon-100); border-radius: 8px; padding: 6px 9px; display: block; margin-top: 4px; overflow-x: auto; white-space: nowrap; }
+
+.alert { border-radius: 10px; padding: 10px 12px; font-size: 13.5px; margin: 8px 0; border: 1px solid; }
+.alert ul { margin: 4px 0 0; padding-left: 18px; }
+.alert.error { background: var(--fail-bg); border-color: #f3c7c3; color: #7d1a14; }
+.alert.warn { background: var(--review-bg); border-color: #f0dc9c; color: var(--review); }
+.alert.info { background: var(--pass-bg); border-color: #c8d9ea; color: var(--pass); }
+.alert.ok { background: var(--excellent-bg); border-color: #bfe0cc; color: var(--excellent); }
+
+/* Tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; background: #fff; }
+th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-3); background: #faf7f7; font-weight: 700; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tfoot td { font-weight: 700; background: #faf7f7; }
+tr.group-row td { font-weight: 700; background: #fcf8f8; }
+tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
+
+/* Badges */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.badge.excellent { background: var(--excellent-bg); color: var(--excellent); border-color: #bfe0cc; }
+.badge.pass { background: var(--pass-bg); color: var(--pass); border-color: #c8d9ea; }
+.badge.fail { background: var(--fail-bg); color: var(--fail); border-color: #f3c7c3; }
+.badge.inc { background: var(--inc-bg); color: var(--inc); border-color: #f2d49b; }
+.badge.drp { background: var(--drp-bg); color: var(--drp); border-color: #d4d4d4; }
+.badge.review { background: var(--review-bg); color: var(--review); border-color: #f0dc9c; }
+.badge.pending { background: #f3f1f1; color: var(--ink-3); border-color: var(--line); }
+.badge.method { background: var(--maroon-50); color: var(--maroon); border-color: var(--maroon-100); }
+.badge.estimate { background: #efeaff; color: #4b3a8f; border-color: #d8cff7; }
+
+/* Scholar classification */
+.scholar {
+  display: flex; gap: 14px; align-items: center; border-radius: var(--radius); padding: 16px 18px; border: 2px solid var(--line); background: #fff;
+}
+.scholar .scholar-icon { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; flex: none; background: #f3f1f1; color: var(--ink-3); }
+.scholar strong { display: block; font-size: 18px; }
+.scholar.university { border-color: var(--maroon); background: linear-gradient(120deg, var(--maroon) 0%, var(--maroon-800) 100%); color: #fff; }
+.scholar.university .scholar-icon { background: #fff; color: var(--maroon); }
+.scholar.college { border-color: var(--maroon); background: var(--maroon-50); color: var(--maroon-900); }
+.scholar.college .scholar-icon { background: var(--maroon); color: #fff; }
+.scholar .congrats { font-size: 13px; margin-top: 2px; }
+.scholar.university .muted { color: rgba(255, 255, 255, .8); }
+.celebrate { animation: pop .5s ease; }
+@keyframes pop { 0% { transform: scale(.97); } 60% { transform: scale(1.015); } 100% { transform: scale(1); } }
+
+/* Scale reference table */
+.scale-table td:first-child { font-weight: 700; }
+
+/* What-if */
+.estimate-banner { display: flex; gap: 8px; align-items: center; background: #efeaff; color: #4b3a8f; border: 1px solid #d8cff7; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
+.slider-row { display: grid; grid-template-columns: 1fr 110px; gap: 12px; align-items: center; }
+
+/* Modal */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(30, 8, 10, .45); display: grid; place-items: center; padding: 16px; z-index: 50; animation: fadeIn .15s ease; }
+.modal-backdrop[hidden] { display: none; }
+.modal { background: #fff; border-radius: 16px; width: min(640px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0, 0, 0, .25); }
+.modal-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.modal-head h2 { font-size: 18px; }
+.modal-head .icon-btn:hover { background: #f1eded; color: var(--ink); border-color: var(--line); }
+.modal-body { padding: 18px 20px; overflow-y: auto; }
+.modal-foot { padding: 14px 20px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.modal-foot:empty { display: none; }
+
+/* Toast */
+.toast-wrap { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
+.toast { background: var(--ink); color: #fff; padding: 11px 16px; border-radius: 10px; font-size: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, .2); animation: toastIn .2s ease; max-width: 340px; }
+.toast.success { background: var(--excellent); }
+.toast.error { background: var(--fail); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1180px) {
+  .grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .calc-layout { grid-template-columns: minmax(0, 1fr); }
+  .result-card { position: static; }
+}
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .content { margin-left: 0; }
+  .topbar { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+  .topbar-brand { display: flex; width: 100%; }
+  .page-title { font-size: 19px; }
+  main { padding: 16px 14px 96px; }
+  .app-footer { padding: 0 16px 96px; }
+  .bottom-nav {
+    display: grid; grid-template-columns: repeat(2, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    background: #fff; border-top: 1px solid var(--line); padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 16px rgba(40, 10, 12, .06);
+  }
+  .bottom-nav a { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10.5px; color: var(--ink-3); text-decoration: none; padding: 6px 2px; border-radius: 10px; font-weight: 600; text-align: center; }
+  .bottom-nav a.active { color: var(--maroon); background: var(--maroon-50); }
+  .grid.cols-3, .grid.cols-2 { grid-template-columns: 1fr; }
+  .span-2 { grid-column: auto; }
+  .toast-wrap { bottom: 84px; left: 14px; right: 14px; }
+}
+@media (max-width: 640px) {
+  .grid.cols-4 { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { padding: 16px; }
+  .method-picker { grid-template-columns: 1fr; }
+  .cat-head { grid-template-columns: 1fr auto; }
+  .cat-head .f-name { grid-column: 1 / -1; }
+  .item-row, .item-row.named { grid-template-columns: 1fr 1fr auto; }
+  .gpa-row { grid-template-columns: 1fr 1fr; }
+  .gpa-row .icon-btn { justify-self: end; }
+  .item-row .f-name, .item-row .item-label, .gpa-row .field:first-child { grid-column: 1 / -1; }
+  .item-label { padding-top: 0; }
+  .form-grid { grid-template-columns: 1fr; }
+  .result-big .num { font-size: 38px; }
+  .kv { grid-template-columns: 1fr auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+@media print {
+  .sidebar, .bottom-nav, .topbar, .app-footer { display: none; }
+  .content { margin: 0; }
+}
+</style>
+  
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <div class="app">
+    <!-- Sidebar (desktop) -->
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">EU</div>
+        <div class="brand-text">
+          <strong>MSEUF</strong>
+          <span>Grade Calculator</span>
+        </div>
+      </div>
+      <nav class="nav" id="sideNav"></nav>
+      <p class="sidebar-foot">Unofficial student tool. Always confirm grades with the Registrar.</p>
+    </aside>
+
+    <div class="content">
+      <header class="topbar">
+        <div class="topbar-brand">
+          <div class="brand-mark sm" aria-hidden="true">EU</div>
+          <strong>MSEUF Grade Calculator</strong>
+        </div>
+        <h1 id="pageTitle" class="page-title">Grade Calculator</h1>
+      </header>
+
+      <main id="main" tabindex="-1">
+        <section class="view" id="view-calculator" data-title="Grade Calculator"></section>
+        <section class="view" id="view-gpa" data-title="GPA Calculator"></section>
+      </main>
+
+      <footer class="app-footer">
+        MSEUF Grade Calculator is a student-made estimation tool and is not an official Manuel S. Enverga University Foundation system.
+        Grading scale based on the MSEUF student handbook. Nothing you enter is saved — refreshing or closing the page clears everything.
+      </footer>
+    </div>
+
+    <!-- Bottom navigation (mobile) -->
+    <nav class="bottom-nav" id="bottomNav" aria-label="Main navigation"></nav>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <h2 id="modalTitle"></h2>
+        <button class="icon-btn" data-modal-close aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot" id="modalFoot"></div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toasts" aria-live="polite"></div>
+<script>
+/* =========================================================
+   MSEUF Grade Calculator — application logic
+   Vanilla JS. Compute-only: everything lives in memory and is
+   cleared when the page is refreshed or closed. Nothing is
+   written to LocalStorage, cookies or any server.
+   ========================================================= */
+(function () {
+  'use strict';
+
+  /* ---------------------------------------------------------
+     1. Constants
+     --------------------------------------------------------- */
+  const EXAM_SHARE_PCT = 60;        // Major examinations: 60% of the period grade
+  const REQ_SHARE_PCT = 40;         // Class requirements: 40% of the period grade
+  const FSG_MID = 0.40;             // Final subject grade: midterm 40%
+  const FSG_FIN = 0.60;             //                      final 60%
+  const EXAMS = '__exams';          // list key used for the major examinations
+
+  const METHODS = {
+    nonzero: { label: 'Non-Zero-Based Grading (50% Base)', short: '50% Base', formula: '((Earned ÷ Total) × 50) + 50' },
+    zero: { label: 'Zero-Based Grading', short: 'Zero-Based', formula: '(Earned ÷ Total) × 100' }
+  };
+
+  // MSEUF grading scale (student handbook)
+  const SCALE = [
+    { level: 1, gp: 1.00, min: 98, max: 100, desc: 'Excellent' },
+    { level: 2, gp: 1.25, min: 95, max: 97, desc: 'Excellent' },
+    { level: 3, gp: 1.50, min: 92, max: 94, desc: 'Superior' },
+    { level: 4, gp: 1.75, min: 89, max: 91, desc: 'Superior' },
+    { level: 5, gp: 2.00, min: 87, max: 88, desc: 'High Average', note: '* Lowest grade for the graduate school with a unit credit.' },
+    { level: 6, gp: 2.25, min: 84, max: 86, desc: 'High Average' },
+    { level: 7, gp: 2.50, min: 81, max: 83, desc: 'Average' },
+    { level: 8, gp: 2.75, min: 78, max: 80, desc: 'Low Average' },
+    { level: 9, gp: 3.00, min: 75, max: 77, desc: 'Passed' }
+  ];
+  const FAIL = { level: 10, gp: 5.00, min: null, max: 74, desc: 'Failed' };
+  const GP_CHOICES = SCALE.map(s => s.gp).concat([5.00]);
+
+  const CATEGORY_SUGGESTIONS = ['Quizzes', 'Assignments', 'Activities', 'Recitations', 'Seatwork', 'Laboratory Activities', 'Projects', 'Attendance'];
+
+  const NAV = [
+    { id: 'calculator', label: 'Grade Calculator', short: 'Grades', icon: 'calculator' },
+    { id: 'gpa', label: 'GPA Calculator', short: 'GPA', icon: 'gpa' }
+  ];
+  const CALC_TABS = [
+    { id: 'initial', label: 'Initial Grade' },
+    { id: 'midterm', label: 'Midterm Grade' },
+    { id: 'final', label: 'Final Grade' },
+    { id: 'fsg', label: 'Final Subject Grade' },
+    { id: 'whatif', label: 'What-If Projection' }
+  ];
+  const ROUNDING = {
+    strict: 'No rounding — flag decimals that fall between ranges for review (default)',
+    round: 'Round half up to a whole number (e.g. 91.5 → 92)',
+    truncate: 'Drop decimals (e.g. 91.9 → 91)'
+  };
+
+  const ICONS = {
+    calculator: '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 18.5h.01M12 18.5h.01M16 18.5h.01"/>',
+    gpa: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>'
+  };
+  const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+
+  /* ---------------------------------------------------------
+     2. Small helpers
+     --------------------------------------------------------- */
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const snap = (v) => Math.round(v * 1e9) / 1e9;          // removes floating-point noise only
+  const isBlank = (v) => v === undefined || v === null || String(v).trim() === '';
+  const num = (v) => (isBlank(v) ? NaN : Number(v));
+  const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
+  const str = (v) => (v === undefined || v === null ? '' : String(v));
+  const sum = (arr) => snap(arr.reduce((a, b) => a + b, 0));
+
+  const fmt = (v, d = 2) => (isNum(v) ? Number(v).toFixed(d) : '—');
+  const fmtP = (v) => (isNum(v) ? `${fmt(v)}%` : '—');
+  const fmtGP = (gp) => (isNum(gp) ? gp.toFixed(2) : '—');
+  const pctNum = (v) => String(+(+v).toFixed(2));          // 5 → "5", 3.3333 → "3.33"
+  const scoreLabel = (e, t) => `${+e}/${+t}`;
+
+  /* ---------------------------------------------------------
+     3. Core grade computation (pure functions)
+     --------------------------------------------------------- */
+  let state; // declared early so convertGrade can read the rounding option
+
+  function scorePct(earned, total, method) {
+    const r = earned / total;
+    return snap(method === 'zero' ? r * 100 : r * 50 + 50);
+  }
+
+  function gpEntry(gp) {
+    return SCALE.find(s => s.gp === gp) || (gp === 5 ? FAIL : null);
+  }
+  const rangeLabel = (e) => (e === FAIL ? '74 and below' : `${e.min}–${e.max}`);
+
+  /**
+   * Converts a percentage into an MSEUF grade point.
+   * rounding: 'strict' (no rounding; decimals between ranges are flagged),
+   *           'round' (round half up to a whole number), 'truncate' (drop decimals).
+   */
+  function convertGrade(v, rounding) {
+    rounding = rounding || (state && state.settings.rounding) || 'strict';
+    if (!isNum(v)) return null;
+    const raw = snap(v);
+    let used = raw;
+    let note = '';
+    const rawTxt = raw.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+    if (rounding === 'round') {
+      used = Math.floor(raw + 0.5);
+      if (used !== raw) note = `${rawTxt}% was rounded to ${used}% (round half up — confirm against official MSEUF policy).`;
+    } else if (rounding === 'truncate') {
+      used = Math.floor(raw);
+      if (used !== raw) note = `${rawTxt}% was truncated to ${used}% (drop decimals — confirm against official MSEUF policy).`;
+    }
+    if (used > 100) {
+      return { review: true, value: raw, used, message: `${fmt(raw)}% is above 100%, where the handbook scale ends. Review the inputs (for example, extra-credit scores).` };
+    }
+    if (used < 0) {
+      return { review: true, value: raw, used, message: 'The percentage is negative. Review the inputs.' };
+    }
+    if (used <= FAIL.max) {
+      return { gp: FAIL.gp, desc: FAIL.desc, passed: false, range: rangeLabel(FAIL), level: FAIL.level, value: raw, used, note };
+    }
+    for (const s of SCALE) {
+      if (used >= s.min && used <= s.max) {
+        return { gp: s.gp, desc: s.desc, passed: true, range: rangeLabel(s), level: s.level, value: raw, used, note };
+      }
+    }
+    // Falls between whole-number ranges (e.g. 91.5)
+    const lo = Math.floor(used), hi = Math.ceil(used);
+    const lower = lo <= FAIL.max ? FAIL : SCALE.find(s => s.max === lo);
+    const upper = SCALE.find(s => s.min === hi);
+    const cand = [lower, upper].filter(Boolean);
+    return {
+      review: true, value: raw, used, candidates: cand,
+      message: `${fmt(raw)}% falls between the handbook ranges ${cand.map(c => `${rangeLabel(c)} (${fmtGP(c.gp)})`).join(' and ')}. ` +
+        'The handbook only lists whole-number ranges, so no grade point was assigned. Confirm MSEUF\'s official rounding policy, then pick a rounding option under the grading scale.'
+    };
+  }
+
+  function classify(gpa) {
+    if (!isNum(gpa)) return null;
+    const g = snap(gpa);
+    if (g >= 1 && g <= 1.30) return { key: 'university', label: 'University Scholar', range: '1.00–1.30' };
+    if (g > 1.30 && g <= 1.50) return { key: 'college', label: 'College Scholar', range: 'Above 1.30–1.50' };
+    return { key: 'none', label: 'No Scholar Classification', range: 'Above 1.50' };
+  }
+
+  /** GPA display (2 dp) that never lets display rounding contradict the classification. */
+  function fmtGPA(g) {
+    if (!isNum(g)) return { text: '—', extended: false };
+    let s = g.toFixed(2);
+    const key = classify(g).key;
+    if (classify(+s).key === key) return { text: s, extended: false };
+    for (let d = 3; d <= 6; d++) {
+      s = g.toFixed(d);
+      if (classify(+s).key === key) break;
+    }
+    return { text: s, extended: true };
+  }
+
+  const catName = (c, i) => str(c.name).trim() || `Category ${i + 1}`;
+  const itemLabel = (c, ci, ii) => `${catName(c, ci)} ${ii + 1}`;
+  const examLabel = (it, i) => str(it.name).trim() || `Examination ${i + 1}`;
+
+  function validateItem(it, label, extra, catKey) {
+    const errs = [];
+    const base = { cat: catKey, item: it.id };
+    const e = num(it.earned), t = num(it.total);
+    if (isBlank(it.earned)) errs.push({ ...base, field: 'earned', msg: `${label}: enter the score earned.` });
+    else if (!Number.isFinite(e)) errs.push({ ...base, field: 'earned', msg: `${label}: score earned must be a number.` });
+    else if (e < 0) errs.push({ ...base, field: 'earned', msg: `${label}: score earned cannot be negative.` });
+    if (isBlank(it.total)) errs.push({ ...base, field: 'total', msg: `${label}: enter the total possible score.` });
+    else if (!(t > 0)) errs.push({ ...base, field: 'total', msg: `${label}: total possible score must be greater than zero.` });
+    if (Number.isFinite(e) && t > 0 && e > t && !extra) {
+      errs.push({ ...base, field: 'earned', msg: `${label}: score earned (${e}) is higher than the total (${t}). Turn on extra credit if this is intentional.` });
+    }
+    return errs;
+  }
+
+  /** Validates weighted categories; each category's weight is split equally among its items. */
+  function checkCategories(cats, extra, cap, errors, warnings, underMsg) {
+    let allocated = 0;
+    cats.forEach((c, ci) => {
+      const cname = catName(c, ci);
+      if (isBlank(c.weight)) errors.push({ cat: c.id, item: '', field: 'weight', msg: `${cname}: enter the category weight (%).` });
+      else {
+        const w = num(c.weight);
+        if (!Number.isFinite(w) || w <= 0) errors.push({ cat: c.id, item: '', field: 'weight', msg: `${cname}: weight must be greater than 0%.` });
+        else allocated += w;
+      }
+      if (!c.items.length) errors.push({ msg: `${cname}: add at least one item.` });
+      c.items.forEach((it, ii) => errors.push(...validateItem(it, itemLabel(c, ci, ii), extra, c.id)));
+    });
+    allocated = snap(allocated);
+    const remaining = snap(cap - allocated);
+    if (allocated > cap) {
+      errors.push({ msg: `Category weights total ${allocated}%. They cannot exceed ${cap}%. Reduce them by ${snap(allocated - cap)}%.` });
+      cats.forEach(c => errors.push({ cat: c.id, item: '', field: 'weight', msg: '' }));
+    } else if (remaining > 0 && cats.length) {
+      warnings.push(underMsg(allocated, remaining));
+    }
+    return { allocated, remaining, max: cap };
+  }
+
+  /** Per-category results: every item is worth (category weight ÷ number of items). */
+  function catResults(cats, method) {
+    return cats.map((c, ci) => {
+      const weight = +c.weight, n = c.items.length;
+      const items = c.items.map((it, ii) => {
+        const earned = +it.earned, total = +it.total, pct = scorePct(earned, total, method);
+        return { name: itemLabel(c, ci, ii), earned, total, pct, share: snap(weight / n), points: snap(pct * weight / (n * 100)) };
+      });
+      return { name: catName(c, ci), weight, n, share: snap(weight / n), items, avgPct: snap(sum(items.map(i => i.pct)) / n), contribution: sum(items.map(i => i.points)) };
+    });
+  }
+
+  function computeInitial(d) {
+    const errors = [], warnings = [];
+    const cats = d.cats || [];
+    if (!cats.length) errors.push({ msg: 'Add at least one category.' });
+    const allocation = checkCategories(cats, d.extra, 100, errors, warnings,
+      (a, r) => `Category weights total ${a}% — ${r}% is still unallocated, so the grade below only counts ${a}% of 100%.`);
+    if (errors.length) return { ok: false, errors, warnings, allocation };
+    const catRows = catResults(cats, d.method);
+    const grade = sum(catRows.map(c => c.contribution));
+    return { ok: true, errors, warnings, allocation, catRows, grade, method: d.method };
+  }
+
+  function computePeriod(d) {
+    const errors = [], warnings = [];
+    const exams = d.exams || [], cats = d.cats || [];
+
+    // A. Major examinations (60%, split equally among exams)
+    if (!exams.length) errors.push({ msg: 'Add at least one major examination.' });
+    exams.forEach((it, i) => errors.push(...validateItem(it, examLabel(it, i), d.extra, EXAMS)));
+
+    // B. Class requirements (40%, each category's weight split equally among its items)
+    const allocation = checkCategories(cats, d.extra, REQ_SHARE_PCT, errors, warnings,
+      (a, r) => `Class requirement weights total ${a}% — ${r}% of the 40% is not allocated yet, so the grade below is missing up to ${r} points.`);
+    if (!cats.length) warnings.push('No class requirement categories yet — the class requirement share (40%) counts as 0.');
+
+    if (errors.length) return { ok: false, errors, warnings, allocation };
+
+    const n = exams.length;
+    const examRows = exams.map((it, i) => {
+      const earned = +it.earned, total = +it.total, pct = scorePct(earned, total, d.method);
+      return { name: examLabel(it, i), earned, total, pct, share: snap(EXAM_SHARE_PCT / n), points: snap(pct * EXAM_SHARE_PCT / (n * 100)) };
+    });
+    const examPct = snap(sum(examRows.map(r => r.pct)) / n);
+    const examContribution = sum(examRows.map(r => r.points));
+    const catRows = catResults(cats, d.method);
+    const reqContribution = sum(catRows.map(c => c.contribution));
+    const grade = snap(examContribution + reqContribution);
+    return { ok: true, errors, warnings, method: d.method, examRows, examPct, examContribution, catRows, reqContribution, allocation, grade };
+  }
+
+  const computeFSG = (m, f) => snap(m * FSG_MID + f * FSG_FIN);
+
+  /** rows: [{ name, units, pct, gp }] where gp is '' (compute from pct), a grade point, 'INC' or 'DRP'. */
+  function computeGPA(rows) {
+    const included = [], excluded = [];
+    rows.forEach((r, idx) => {
+      const label = str(r.name).trim() || `Subject ${idx + 1}`;
+      const units = num(r.units);
+      let g = null, reason = null;
+      if (r.gp === 'INC') reason = 'INC (Incomplete) — not a numerical grade point';
+      else if (r.gp === 'DRP') reason = 'DRP (Dropped) — not a numerical grade point';
+      else if (!isBlank(r.gp)) { const e = gpEntry(Number(r.gp)); g = { gp: Number(r.gp), desc: e ? e.desc : '', fromPct: false }; }
+      else if (isBlank(r.pct)) reason = 'No grade entered';
+      else {
+        const p = num(r.pct);
+        if (!(p >= 0 && p <= 100)) reason = 'Grade must be between 0 and 100';
+        else {
+          const c = convertGrade(p);
+          if (c.review) reason = 'Grade is between handbook ranges — needs review';
+          else g = { gp: c.gp, desc: c.desc, fromPct: true, pct: p };
+        }
+      }
+      if (!reason && !(units > 0)) reason = 'Units must be greater than zero';
+      if (reason) excluded.push({ r, idx, label, reason });
+      else included.push({ r, idx, label, units, g, weighted: snap(g.gp * units) });
+    });
+    const totalUnits = sum(included.map(x => x.units));
+    const totalWeighted = sum(included.map(x => x.weighted));
+    const gpa = totalUnits > 0 ? snap(totalWeighted / totalUnits) : null;
+    return { included, excluded, totalUnits, totalWeighted, gpa, cls: classify(gpa) };
+  }
+
+  /* ---------------------------------------------------------
+     4. In-memory state (cleared on refresh — never persisted)
+     --------------------------------------------------------- */
+  const newItem = (name = '') => ({ id: uid(), name, earned: '', total: '' });
+  const newCat = (name = '') => ({ id: uid(), name, weight: '', items: [newItem()] });
+  const newGpaRow = (pct = '') => ({ id: uid(), name: '', units: '3', pct, gp: '' });
+  const newInitialDraft = () => ({ method: 'nonzero', extra: false, cats: [newCat('')] });
+  const newPeriodDraft = (examName) => ({ method: 'nonzero', extra: false, exams: [newItem(examName)], cats: [] });
+  const defaultState = () => ({
+    settings: { rounding: 'strict' },
+    drafts: {
+      initial: newInitialDraft(),
+      midterm: newPeriodDraft('Midterm Examination'),
+      final: newPeriodDraft('Final Examination'),
+      fsg: { midterm: '', final: '' },
+      whatif: { midterm: '', final: '85', targetGP: '1.75', targetPct: '' }
+    },
+    gpaRows: [newGpaRow()]
+  });
+  state = defaultState();
+
+  /* ---------------------------------------------------------
+     5. UI primitives: toast, modal, badges
+     --------------------------------------------------------- */
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+  function toast(msg, type = '') {
+    const wrap = $('#toasts');
+    if (!wrap) return;
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.textContent = msg;
+    wrap.appendChild(t);
+    setTimeout(() => t.remove(), 3600);
+  }
+
+  let modalResolve = null;
+  let lastFocus = null;
+  function openModal({ title, body, buttons = [] }) {
+    return new Promise(resolve => {
+      modalResolve = resolve;
+      lastFocus = document.activeElement;
+      $('#modalTitle').textContent = title;
+      $('#modalBody').innerHTML = body;
+      const foot = $('#modalFoot');
+      foot.innerHTML = buttons.map((b, i) => `<button class="btn ${b.class || ''}" data-modal-btn="${i}">${esc(b.label)}</button>`).join('');
+      $$('[data-modal-btn]', foot).forEach(btn => btn.addEventListener('click', () => closeModal(buttons[+btn.dataset.modalBtn].value)));
+      $('#modal').hidden = false;
+      const first = $('[data-modal-btn]', foot) || $('[data-modal-close]');
+      if (first) first.focus();
+    });
+  }
+  function closeModal(value) {
+    $('#modal').hidden = true;
+    $('#modalBody').innerHTML = '';
+    const r = modalResolve; modalResolve = null;
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+    if (r) r(value);
+  }
+  function confirmDialog(title, message, confirmLabel = 'Confirm') {
+    return openModal({
+      title, body: `<p>${message}</p>`,
+      buttons: [{ label: 'Cancel', class: 'ghost', value: false }, { label: confirmLabel, class: 'danger', value: true }]
+    });
+  }
+
+  function gradeBadge(g) {
+    if (!g || g.pending) return '<span class="badge pending">No grade yet</span>';
+    if (g.review) return '<span class="badge review" title="Between handbook ranges — review needed">⚠ Needs review</span>';
+    const cls = g.gp === 5 ? 'fail' : g.gp <= 1.75 ? 'excellent' : 'pass';
+    const mark = g.gp === 5 ? '✕ ' : '✓ ';
+    return `<span class="badge ${cls}">${mark}${fmtGP(g.gp)} · ${esc(g.desc)}</span>`;
+  }
+  const methodBadge = (m) => (m ? `<span class="badge method" title="${esc(METHODS[m].formula)}">${esc(METHODS[m].label)}</span>` : '');
+
+  function scholarBlock(cls, gpaText) {
+    if (!cls) return '';
+    const iconTxt = cls.key === 'university' ? '★' : cls.key === 'college' ? '☆' : '•';
+    const msg = cls.key === 'university' ? 'Your GPA is within the University Scholar range.'
+      : cls.key === 'college' ? 'Your GPA is within the College Scholar range.'
+        : 'Your GPA is outside the scholar ranges (1.00–1.50).';
+    return `<div class="scholar ${cls.key} ${cls.key !== 'none' ? 'celebrate' : ''}" role="status">
+      <div class="scholar-icon" aria-hidden="true">${iconTxt}</div>
+      <div>
+        <span class="small ${cls.key === 'university' ? '' : 'muted'}">Scholar classification (GPA-based estimate)</span>
+        <strong>${esc(cls.label)}</strong>
+        <div class="congrats">${msg} GPA ${esc(gpaText)} · range ${esc(cls.range)}</div>
+        <div class="tiny ${cls.key === 'university' ? '' : 'muted'}">Not an official award — other MSEUF requirements may apply.</div>
+      </div>
+    </div>`;
+  }
+
+  const alertList = (type, title, items) => items.length ? `<div class="alert ${type}" role="${type === 'error' ? 'alert' : 'status'}"><strong>${title}</strong><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul></div>` : '';
+
+  function scaleCard() {
+    return `<div class="card"><h3>MSEUF grading scale</h3>
+      <div class="table-wrap"><table class="scale-table"><thead><tr><th>Grade</th><th class="num">%</th><th>Description</th></tr></thead><tbody>
+      ${SCALE.map(s => `<tr><td>${fmtGP(s.gp)}${s.note ? '*' : ''}</td><td class="num">${s.min}–${s.max}</td><td>${s.desc}</td></tr>`).join('')}
+      <tr><td>5.00</td><td class="num">74 and below</td><td>Failed</td></tr><tr><td>INC</td><td class="num">—</td><td>Incomplete</td></tr><tr><td>DRP</td><td class="num">—</td><td>Dropped</td></tr>
+      </tbody></table></div>
+      <p class="tiny muted">* Lowest grade for the graduate school with a unit credit.</p>
+      <label class="field mt"><span>Rounding (percentage → grade point)</span>
+        <select data-setting="rounding">${Object.keys(ROUNDING).map(k => `<option value="${k}" ${state.settings.rounding === k ? 'selected' : ''}>${ROUNDING[k]}</option>`).join('')}</select>
+        <small>The handbook lists whole-number ranges only. Confirm MSEUF's official rounding policy before relying on a rounded result.</small></label>
+    </div>`;
+  }
+
+  /* ---------------------------------------------------------
+     6. Routing & shell
+     --------------------------------------------------------- */
+  function parseRoute() {
+    const parts = (location.hash || '#/calculator/initial').replace(/^#\/?/, '').split('/');
+    const view = NAV.some(n => n.id === parts[0]) ? parts[0] : 'calculator';
+    let sub = parts[1] || '';
+    if (view === 'calculator' && !CALC_TABS.some(t => t.id === sub)) sub = 'initial';
+    return { view, sub };
+  }
+  function renderNav() {
+    const { view } = parseRoute();
+    const link = (n, text) => `<a href="#/${n.id}" class="${n.id === view ? 'active' : ''}" ${n.id === view ? 'aria-current="page"' : ''}>${icon(n.icon)}<span>${text}</span></a>`;
+    $('#sideNav').innerHTML = NAV.map(n => link(n, n.label)).join('');
+    $('#bottomNav').innerHTML = NAV.map(n => link(n, n.short)).join('');
+  }
+  function render() {
+    const { view, sub } = parseRoute();
+    renderNav();
+    $$('.view').forEach(v => v.classList.toggle('active', v.id === `view-${view}`));
+    const nav = NAV.find(n => n.id === view);
+    $('#pageTitle').textContent = nav.label;
+    document.title = `${nav.label} · MSEUF Grade Calculator`;
+    if (view === 'gpa') renderGPA(); else renderCalculator(sub);
+  }
+
+  /* ---------------------------------------------------------
+     7. Grade calculator views
+     --------------------------------------------------------- */
+  function renderCalculator(tab) {
+    const el = $('#view-calculator');
+    const tabs = `<div class="tabs" role="tablist">${CALC_TABS.map(t => `<a role="tab" href="#/calculator/${t.id}" class="tab ${t.id === tab ? 'active' : ''}" aria-selected="${t.id === tab}">${t.label}</a>`).join('')}</div>`;
+    let body = '';
+    if (tab === 'initial') body = initialView();
+    else if (tab === 'midterm' || tab === 'final') body = periodView(tab);
+    else if (tab === 'fsg') body = fsgView();
+    else body = whatIfView();
+    el.innerHTML = tabs + body;
+    if (tab === 'fsg') updateFsg();
+    else if (tab === 'whatif') updateWhatIf();
+    else updateCalcResults(tab);
+  }
+
+  function methodPicker(calc, method) {
+    return `<fieldset class="method-picker"><legend>Grading method for this calculation</legend>
+      ${['nonzero', 'zero'].map(m => `<label class="seg ${method === m ? 'active' : ''}">
+        <input type="radio" name="method-${calc}" value="${m}" data-action="set-method" data-calc="${calc}" ${method === m ? 'checked' : ''}>
+        <span><strong>${METHODS[m].label}</strong>${m === 'nonzero' ? '<span class="default-tag">MSEUF default</span>' : ''}<small>${METHODS[m].formula}</small></span>
+      </label>`).join('')}</fieldset>`;
+  }
+
+  const dataAttrs = (calc, cat, item, field) => `data-calc="${calc}" data-cat="${cat}" data-item="${item}" data-field="${field}"`;
+
+  function itemRow(calc, catKey, it, label, named) {
+    return `<div class="item-row ${named ? 'named' : ''}">
+      ${named
+        ? `<label class="field f-name"><span>${esc(label)}</span><input type="text" value="${esc(it.name)}" placeholder="e.g. Midterm Examination" ${dataAttrs(calc, catKey, it.id, 'name')} autocomplete="off"></label>`
+        : `<div class="item-label" data-item-label="${it.id}">${esc(label)}</div>`}
+      <label class="field"><span>Score earned</span><input type="number" inputmode="decimal" step="any" min="0" value="${esc(it.earned)}" ${dataAttrs(calc, catKey, it.id, 'earned')}></label>
+      <label class="field"><span>Total possible</span><input type="number" inputmode="decimal" step="any" min="0" value="${esc(it.total)}" ${dataAttrs(calc, catKey, it.id, 'total')}></label>
+      <button class="icon-btn" data-action="remove-item" data-calc="${calc}" data-cat="${catKey}" data-item="${it.id}" aria-label="Remove ${esc(label)}" title="Remove">${icon('trash')}</button>
+      <div class="row-pct" data-pct="${it.id}"></div>
+    </div>`;
+  }
+
+  function catEditor(calc, cats, emptyText) {
+    if (!cats.length) return `<div class="empty-inline">${emptyText}</div>`;
+    return `<div class="cat-list">${cats.map((c, ci) => `<div class="cat-card">
+      <div class="cat-head">
+        <label class="field f-name"><span>Category ${ci + 1}</span><input type="text" list="dl-categories" value="${esc(c.name)}" placeholder="e.g. Quizzes" ${dataAttrs(calc, c.id, '', 'name')} autocomplete="off"></label>
+        <label class="field"><span>Category weight</span><div class="input-suffix" data-suffix="%"><input type="number" inputmode="decimal" step="any" min="0" value="${esc(c.weight)}" placeholder="e.g. 10" ${dataAttrs(calc, c.id, '', 'weight')}></div></label>
+        <button class="icon-btn" data-action="remove-cat" data-calc="${calc}" data-cat="${c.id}" aria-label="Remove ${esc(catName(c, ci))}" title="Remove category">${icon('trash')}</button>
+      </div>
+      <div class="cat-share" data-share="${c.id}"></div>
+      <div class="item-list">${c.items.map((it, ii) => itemRow(calc, c.id, it, itemLabel(c, ci, ii), false)).join('') || '<div class="empty-inline">No items yet.</div>'}</div>
+      <div><button class="btn sm secondary" data-action="add-item" data-calc="${calc}" data-cat="${c.id}">${icon('plus')}Add item</button></div>
+    </div>`).join('')}</div>`;
+  }
+
+  function extraToggle(calc, d) {
+    return `<label class="check small"><input type="checkbox" data-action="toggle-extra" data-calc="${calc}" ${d.extra ? 'checked' : ''}> Allow extra credit (score may exceed total)</label>`;
+  }
+
+  function catChips(calc) {
+    return `<div class="chips">${CATEGORY_SUGGESTIONS.map(n => `<button class="chip" data-action="add-cat" data-calc="${calc}" data-name="${n}">+ ${n}</button>`).join('')}</div>`;
+  }
+
+  function initialView() {
+    const d = state.drafts.initial;
+    return `<div class="calc-layout">
+      <div class="stack"><div class="card">
+        <div class="card-head"><div><h2>Initial Grade Calculator</h2><p class="muted small">Give each category a weight (total 100%). A category's weight is split equally among its items — e.g. Quizzes 10% with 2 quizzes → each quiz is worth 5%.</p></div></div>
+        ${methodPicker('initial', d.method)}
+        <div class="section-label"><h3>Categories</h3>${extraToggle('initial', d)}</div>
+        <div class="alloc" id="alloc-initial"></div>
+        ${catEditor('initial', d.cats, 'No categories yet. Add one below.')}
+        <div class="row mt"><button class="btn secondary" data-action="add-cat" data-calc="initial">${icon('plus')}Add category</button>${catChips('initial')}</div>
+        <div class="row mt"><button class="btn ghost sm" data-action="reset-calc" data-calc="initial">Clear calculator</button></div>
+      </div></div>
+      <div class="card result-card" aria-live="polite" id="results-initial"></div>
+    </div>`;
+  }
+
+  function periodView(calc) {
+    const d = state.drafts[calc];
+    const title = calc === 'midterm' ? 'Midterm' : 'Final';
+    return `<div class="calc-layout">
+      <div class="stack"><div class="card">
+        <div class="card-head"><div><h2>${title} Grade Calculator</h2><p class="muted small">${title} Grade = Major Examinations (60%) + Class Requirements (40%). Every weight is split equally among its items.</p></div></div>
+        ${methodPicker(calc, d.method)}
+        <div class="row mt">${extraToggle(calc, d)}</div>
+
+        <div class="section-label"><h3>A. Major Examinations</h3><span class="tag">60% of grade</span></div>
+        <div class="cat-share" data-share="${EXAMS}"></div>
+        <div class="item-list">${d.exams.map((it, i) => itemRow(calc, EXAMS, it, `Exam ${i + 1}`, true)).join('') || '<div class="empty-inline">Add at least one major examination.</div>'}</div>
+        <div class="row mt"><button class="btn secondary" data-action="add-item" data-calc="${calc}" data-cat="${EXAMS}">${icon('plus')}Add examination</button></div>
+
+        <div class="section-label"><h3>B. Class Requirements</h3><span class="tag">40% of grade</span></div>
+        <div class="alloc" id="alloc-${calc}"></div>
+        ${catEditor(calc, d.cats, 'No class requirement categories yet. Add your own below — you set each weight.')}
+        <div class="row mt"><button class="btn secondary" data-action="add-cat" data-calc="${calc}">${icon('plus')}Add category</button>${catChips(calc)}</div>
+        <div class="row mt"><button class="btn ghost sm" data-action="reset-calc" data-calc="${calc}">Clear calculator</button></div>
+      </div></div>
+      <div class="card result-card" aria-live="polite" id="results-${calc}"></div>
+    </div>`;
+  }
+
+  const showBlankErrors = {}; // only flag untouched blank fields after the user has interacted
+  function markInvalid(calc, errors) {
+    $$(`[data-calc="${calc}"][data-field]`).forEach(i => { i.classList.remove('invalid'); i.removeAttribute('aria-invalid'); });
+    errors.forEach(e => {
+      if (!e.cat) return;
+      const inp = $(`[data-calc="${calc}"][data-cat="${e.cat}"][data-item="${e.item || ''}"][data-field="${e.field}"]`);
+      if (inp && (inp.value !== '' || showBlankErrors[calc])) { inp.classList.add('invalid'); inp.setAttribute('aria-invalid', 'true'); }
+    });
+  }
+
+  function equivalentBlock(grade) {
+    const c = convertGrade(grade);
+    if (!c) return '';
+    const label = 'Equivalent grade point (reference)';
+    if (c.review) return `<div class="alert warn"><strong>${label}: needs review</strong><br>${esc(c.message)}</div>`;
+    return `<dl class="kv"><dt>${label}</dt><dd>${gradeBadge(c)}</dd><dt>Percentage range</dt><dd>${c.range}</dd>${c.note ? `<dt>Rounding</dt><dd class="small">${esc(c.note)}</dd>` : ''}</dl>`;
+  }
+
+  /** Live hints inside the editor: item %, how much each item is worth, category split. */
+  function updateHints(calc, d) {
+    const hint = (it, share) => {
+      const el = $(`[data-pct="${it.id}"]`);
+      if (!el) return;
+      const e = num(it.earned), t = num(it.total);
+      if (!(Number.isFinite(e) && t > 0 && e >= 0)) { el.textContent = share ? `Worth ${pctNum(share)}% of the grade` : ''; return; }
+      const p = scorePct(e, t, d.method);
+      el.textContent = `${scoreLabel(e, t)} → ${fmt(p)}% (${METHODS[d.method].short})` + (share ? ` · worth ${pctNum(share)}% of the grade → ${fmt(snap(p * share / 100))} pts` : '');
+    };
+    (d.cats || []).forEach((c, ci) => {
+      const w = num(c.weight), n = c.items.length;
+      const share = Number.isFinite(w) && w > 0 && n ? w / n : null;
+      const el = $(`[data-share="${c.id}"]`);
+      if (el) el.textContent = !n ? 'Add at least one item.'
+        : share ? `${n} item${n === 1 ? '' : 's'} · ${pctNum(w)}% ÷ ${n} = ${pctNum(share)}% each`
+          : `${n} item${n === 1 ? '' : 's'} · enter a weight to split it equally among the items`;
+      c.items.forEach((it, ii) => {
+        const lbl = $(`[data-item-label="${it.id}"]`);
+        if (lbl) lbl.textContent = itemLabel(c, ci, ii);
+        hint(it, share);
+      });
+    });
+    if (d.exams) {
+      const n = d.exams.length;
+      const share = n ? EXAM_SHARE_PCT / n : null;
+      const el = $(`[data-share="${EXAMS}"]`);
+      if (el) el.textContent = n ? `${n} exam${n === 1 ? '' : 's'} · 60% ÷ ${n} = ${pctNum(share)}% each` : '';
+      d.exams.forEach(it => hint(it, share));
+    }
+  }
+
+  function updateAlloc(calc, a) {
+    const box = $(`#alloc-${calc}`);
+    if (!box) return;
+    const cap = a.max;
+    box.className = `alloc ${a.allocated > cap ? 'over' : a.allocated === cap ? 'full' : ''}`;
+    const d = state.drafts[calc];
+    const canDistribute = a.remaining > 0 && d.cats.length > 0;
+    box.innerHTML = `<div class="row between"><strong class="small">Allocated: ${a.allocated}% of ${cap}%</strong><span class="small ${a.allocated > cap ? '' : 'muted'}">${a.allocated > cap ? `Over by ${snap(a.allocated - cap)}%` : `Remaining: ${a.remaining}%`}</span></div>
+      <div class="alloc-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${cap}" aria-valuenow="${a.allocated}" aria-label="Category weight allocated"><div style="width:${Math.min(100, a.allocated / cap * 100)}%"></div></div>
+      ${canDistribute ? `<button class="btn sm ghost" data-action="distribute" data-calc="${calc}">Distribute remaining ${a.remaining}%…</button>` : ''}`;
+  }
+
+  function breakdownTable(groups, totalLabel, totalWeight, totalPoints) {
+    return `<div class="table-wrap"><table><thead><tr><th>Item</th><th class="num">Score</th><th class="num">%</th><th class="num">Worth</th><th class="num">Points</th></tr></thead>
+      <tbody>${groups.map(g => `<tr class="group-row"><td>${esc(g.name)}</td><td></td><td class="num">${fmt(g.avgPct)}</td><td class="num">${pctNum(g.weight)}%</td><td class="num">${fmt(g.contribution)}</td></tr>
+        ${g.items.map(i => `<tr class="sub-row"><td>${esc(i.name)}</td><td class="num">${scoreLabel(i.earned, i.total)}</td><td class="num">${fmt(i.pct)}</td><td class="num">${pctNum(i.share)}%</td><td class="num">${fmt(i.points)}</td></tr>`).join('')}`).join('')}</tbody>
+      <tfoot><tr><td>${totalLabel}</td><td></td><td></td><td class="num">${pctNum(totalWeight)}%</td><td class="num">${fmt(totalPoints)}</td></tr></tfoot></table></div>`;
+  }
+
+  const groupStep = (g) => `<li>${esc(g.name)}: ${pctNum(g.weight)}% ÷ ${g.n} item${g.n === 1 ? '' : 's'} = ${pctNum(g.share)}% each<code class="formula">${g.items.map(i => `${fmt(i.pct)} × ${pctNum(i.share)}%`).join(' + ')} = ${fmt(g.contribution)}</code></li>`;
+
+  function updateCalcResults(calc) {
+    const box = $(`#results-${calc}`);
+    if (!box) return;
+    const d = state.drafts[calc];
+    const res = calc === 'initial' ? computeInitial(d) : computePeriod(d);
+    markInvalid(calc, res.errors);
+    updateHints(calc, d);
+    updateAlloc(calc, res.allocation);
+
+    if (!res.ok) {
+      box.innerHTML = `<h2>Result</h2><p class="muted small">Fill in or fix the items below to see the computed grade.</p>
+        ${alertList('error', 'Please check your inputs', res.errors.filter(e => e.msg).map(e => esc(e.msg)))}
+        ${alertList('warn', 'Heads up', res.warnings.map(esc))}`;
+      return;
+    }
+
+    const mf = METHODS[res.method].formula;
+    if (calc === 'initial') {
+      box.innerHTML = `<div class="row between"><h2>Initial grade</h2>${methodBadge(res.method)}</div>
+        <div class="result-big mt"><span class="num">${fmt(res.grade)}</span><span class="unit">%</span></div>
+        ${alertList('warn', 'Heads up', res.warnings.map(esc))}
+        ${breakdownTable(res.catRows, 'Total', res.allocation.allocated, res.grade)}
+        <div class="steps"><h4>Step-by-step</h4><ol>
+          <li>Each item's percentage: ${esc(METHODS[res.method].label)}<code class="formula">Percentage = ${mf}</code></li>
+          ${res.catRows.map(groupStep).join('')}
+          <li>Initial grade = sum of all category points<code class="formula">${res.catRows.map(c => fmt(c.contribution)).join(' + ')} = ${fmt(res.grade)}%</code></li>
+        </ol></div>
+        ${equivalentBlock(res.grade)}
+        <p class="tiny muted">The handbook scale officially applies to final subject grades; the equivalent above is for reference only.</p>`;
+      return;
+    }
+
+    const title = calc === 'midterm' ? 'Midterm' : 'Final';
+    const examGroup = { name: 'Major Examinations', weight: EXAM_SHARE_PCT, n: res.examRows.length, share: res.examRows[0].share, avgPct: res.examPct, contribution: res.examContribution, items: res.examRows };
+    box.innerHTML = `<div class="row between"><h2>${title} grade</h2>${methodBadge(res.method)}</div>
+      <div class="result-big mt"><span class="num">${fmt(res.grade)}</span><span class="unit">%</span></div>
+      ${alertList('warn', 'Heads up', res.warnings.map(esc))}
+      <dl class="kv">
+        <dt>Major examinations (60%)</dt><dd>${fmt(res.examContribution)} pts</dd>
+        <dt>Class requirements (${res.allocation.allocated}% of 40%)</dt><dd>${fmt(res.reqContribution)} pts</dd>
+      </dl>
+      ${breakdownTable([examGroup].concat(res.catRows), 'Total', snap(EXAM_SHARE_PCT + res.allocation.allocated), res.grade)}
+      <div class="steps"><h4>Step-by-step</h4><ol>
+        <li>Each item's percentage: ${esc(METHODS[res.method].label)}<code class="formula">Percentage = ${mf}</code></li>
+        ${groupStep(examGroup)}
+        ${res.catRows.map(groupStep).join('')}
+        <li>${title} grade = exam points + class requirement points<code class="formula">${fmt(res.examContribution)} + ${fmt(res.reqContribution)} = ${fmt(res.grade)}%</code></li>
+      </ol></div>
+      ${equivalentBlock(res.grade)}
+      <p class="tiny muted">The handbook scale officially applies to final subject grades; the equivalent above is for reference only.</p>`;
+  }
+
+  /* ---- Pull a result from another calculator (in memory) ---- */
+  function useCalcButton(kind, into) {
+    const r = computePeriod(state.drafts[kind]);
+    const name = kind === 'midterm' ? 'Midterm' : 'Final';
+    return r.ok
+      ? `<button class="btn sm secondary" data-action="use-calc" data-kind="${kind}" data-into="${into}">Use ${name} calculator result (${fmt(r.grade)}%)</button>`
+      : `<span class="tiny muted">${name} calculator: no result yet</span>`;
+  }
+
+  /* ---- Final subject grade ---- */
+  function fsgView() {
+    const d = state.drafts.fsg;
+    return `<div class="calc-layout">
+      <div class="stack"><div class="card">
+        <div class="card-head"><div><h2>Final Subject Grade</h2><p class="muted small">Final Subject Grade = (Midterm × 40%) + (Final × 60%). The initial grade is not included.</p></div></div>
+        <div class="form-grid">
+          <label class="field"><span>Midterm grade (%)</span><input type="number" inputmode="decimal" step="any" min="0" max="100" data-fsg="midterm" value="${esc(d.midterm)}"></label>
+          <label class="field"><span>Final grade (%)</span><input type="number" inputmode="decimal" step="any" min="0" max="100" data-fsg="final" value="${esc(d.final)}"></label>
+        </div>
+        <div class="row mt">${useCalcButton('midterm', 'fsg')}${useCalcButton('final', 'fsg')}</div>
+      </div>
+      ${scaleCard()}</div>
+      <div class="card result-card" aria-live="polite" id="results-fsg"></div>
+    </div>`;
+  }
+
+  function readFsg() {
+    const d = state.drafts.fsg;
+    const errors = [];
+    const m = num(d.midterm), f = num(d.final);
+    if (isBlank(d.midterm)) errors.push('Enter the midterm grade.'); else if (!Number.isFinite(m) || m < 0) errors.push('Midterm grade must be 0 or higher.'); else if (m > 100) errors.push('Midterm grade cannot exceed 100%.');
+    if (isBlank(d.final)) errors.push('Enter the final grade.'); else if (!Number.isFinite(f) || f < 0) errors.push('Final grade must be 0 or higher.'); else if (f > 100) errors.push('Final grade cannot exceed 100%.');
+    return { errors, m, f };
+  }
+  function updateFsg() {
+    const box = $('#results-fsg');
+    if (!box) return;
+    const { errors, m, f } = readFsg();
+    if (errors.length) { box.innerHTML = `<h2>Result</h2>${alertList('error', 'Missing or invalid grades', errors)}`; return; }
+    const fsg = computeFSG(m, f);
+    const c = convertGrade(fsg);
+    box.innerHTML = `<h2>Final subject grade</h2>
+      <div class="result-big mt"><span class="num">${fmt(fsg)}</span><span class="unit">%</span></div>
+      ${c.review ? `<div class="alert warn"><strong>Needs review</strong><br>${esc(c.message)}</div>` : `
+      <dl class="kv"><dt>Grade point</dt><dd style="font-size:20px">${fmtGP(c.gp)}</dd><dt>Description</dt><dd>${esc(c.desc)}</dd><dt>Status</dt><dd>${gradeBadge(c)}</dd><dt>Percentage range</dt><dd>${c.range}</dd>${c.note ? `<dt>Rounding</dt><dd class="small">${esc(c.note)}</dd>` : ''}</dl>
+      <div class="alert ${c.passed ? 'ok' : 'error'}"><strong>${c.passed ? 'PASSED' : 'FAILED'}</strong> — ${c.passed ? 'within the passing ranges (75 and above).' : 'within the 74-and-below range.'}</div>`}
+      <div class="steps"><h4>Computation</h4><ol>
+        <li>Midterm × 40%<code class="formula">${fmt(m)} × 0.40 = ${fmt(snap(m * FSG_MID))}</code></li>
+        <li>Final × 60%<code class="formula">${fmt(f)} × 0.60 = ${fmt(snap(f * FSG_FIN))}</code></li>
+        <li>Final subject grade<code class="formula">${fmt(snap(m * FSG_MID))} + ${fmt(snap(f * FSG_FIN))} = ${fmt(fsg)}%</code></li>
+        ${c.review ? '' : `<li>Convert using the MSEUF scale<code class="formula">${fmt(c.used, Number.isInteger(c.used) ? 0 : 2)}% → ${c.range} → ${fmtGP(c.gp)} (${esc(c.desc)})</code></li>`}
+      </ol></div>
+      <div class="row mt"><button class="btn secondary" data-action="fsg-to-gpa">${icon('plus')}Add to GPA calculator</button></div>`;
+  }
+
+  /* ---- What-if ---- */
+  function whatIfView() {
+    const d = state.drafts.whatif;
+    return `<div class="calc-layout">
+      <div class="stack"><div class="card">
+        <div class="estimate-banner">${icon('target')} Projection mode — every value here is an estimate, not an actual grade.</div>
+        <div class="card-head"><div><h2>Grade Projection &amp; What-If</h2><p class="muted small">Final Subject Grade = (Midterm × 0.40) + (Final × 0.60)</p></div></div>
+        <div class="form-grid">
+          <label class="field"><span>Current midterm grade (%)</span><input type="number" inputmode="decimal" step="any" min="0" max="100" data-wf="midterm" value="${esc(d.midterm)}"></label>
+          <div class="field" style="justify-content:flex-end">${useCalcButton('midterm', 'whatif')}</div>
+          <div class="field full"><span>Estimated final grade (%)</span>
+            <div class="slider-row"><input type="range" min="0" max="100" step="0.5" data-wf="final" value="${esc(num(d.final) || 0)}" aria-label="Estimated final grade slider"><input type="number" inputmode="decimal" step="any" min="0" max="100" data-wf="final" value="${esc(d.final)}" aria-label="Estimated final grade"></div>
+          </div>
+        </div>
+        <div class="section-label"><h3>Target</h3></div>
+        <div class="form-grid">
+          <label class="field"><span>Desired grade point</span><select data-wf="targetGP">${SCALE.map(s => `<option value="${s.gp}" ${String(s.gp) === String(+d.targetGP) ? 'selected' : ''}>${fmtGP(s.gp)} — ${s.desc} (${s.min}%+)</option>`).join('')}</select></label>
+          <label class="field"><span>…or desired final subject grade (%)</span><input type="number" inputmode="decimal" step="any" min="0" max="100" data-wf="targetPct" value="${esc(d.targetPct)}" placeholder="optional"></label>
+        </div>
+      </div></div>
+      <div class="card result-card" aria-live="polite" id="results-whatif"></div>
+    </div>`;
+  }
+
+  function computeWhatIf() {
+    const d = state.drafts.whatif;
+    const errors = [];
+    const m = num(d.midterm), f = num(d.final);
+    if (isBlank(d.midterm)) errors.push('Enter your current midterm grade.'); else if (!(m >= 0 && m <= 100)) errors.push('Midterm grade must be between 0 and 100.');
+    if (!(f >= 0 && f <= 100)) errors.push('Estimated final grade must be between 0 and 100.');
+    let targetPct = null, targetLabel = '';
+    if (!isBlank(d.targetPct)) {
+      const t = num(d.targetPct);
+      if (!(t >= 0 && t <= 100)) errors.push('Desired final subject grade must be between 0 and 100.');
+      else { targetPct = t; targetLabel = `${fmt(t)}%`; }
+    } else {
+      const e = gpEntry(+d.targetGP) || SCALE[3];
+      targetPct = e.min; targetLabel = `${fmtGP(e.gp)} (${e.min}% minimum)`;
+    }
+    if (errors.length) return { ok: false, errors };
+    const fsg = computeFSG(m, f);
+    return { ok: true, m, f, fsg, conv: convertGrade(fsg), targetPct, targetLabel, required: snap((targetPct - m * FSG_MID) / FSG_FIN) };
+  }
+
+  function updateWhatIf() {
+    const box = $('#results-whatif');
+    if (!box) return;
+    const r = computeWhatIf();
+    if (!r.ok) { box.innerHTML = `<div class="row between"><h2>Projection</h2><span class="badge estimate">Estimate</span></div>${alertList('error', 'Missing or invalid inputs', r.errors)}`; return; }
+    let reqMsg;
+    if (r.required > 100) reqMsg = `<div class="alert error">To reach ${esc(r.targetLabel)}, you would need a final grade of <strong>${fmt(r.required)}%</strong>, which is above 100% — not reachable with your current midterm.</div>`;
+    else if (r.required <= 0) reqMsg = `<div class="alert ok">Your midterm already secures ${esc(r.targetLabel)} with any final grade of 0% or higher.</div>`;
+    else reqMsg = `<div class="alert info">To reach ${esc(r.targetLabel)}, you need a final grade of at least <strong>${fmt(r.required)}%</strong>.<br><span class="tiny">(${esc(String(r.targetPct))} − ${fmt(r.m)} × 0.40) ÷ 0.60 = ${fmt(r.required)}</span></div>`;
+    box.innerHTML = `<div class="row between"><h2>Projected final subject grade</h2><span class="badge estimate">Estimate</span></div>
+      <div class="result-big mt"><span class="num">${fmt(r.fsg)}</span><span class="unit">%</span></div>
+      ${r.conv.review ? `<div class="alert warn"><strong>Needs review</strong><br>${esc(r.conv.message)}</div>` : `<dl class="kv"><dt>Projected grade point</dt><dd>${gradeBadge(r.conv)}</dd><dt>Status</dt><dd>${r.conv.passed ? 'Passing (estimate)' : 'Failing (estimate)'}</dd></dl>`}
+      <code class="formula">(${fmt(r.m)} × 0.40) + (${fmt(r.f)} × 0.60) = ${fmt(r.fsg)}%</code>
+      <h3 class="mt">Needed final grade</h3>${reqMsg}`;
+  }
+
+  /* ---------------------------------------------------------
+     8. GPA calculator (in-memory subject rows)
+     --------------------------------------------------------- */
+  function gpaRowHtml(r, i) {
+    const a = (field) => `data-gpa-id="${r.id}" data-gpa-field="${field}"`;
+    return `<div class="gpa-row">
+      <label class="field"><span>Subject ${i + 1}</span><input type="text" value="${esc(r.name)}" placeholder="e.g. CSAL102 (optional)" maxlength="60" ${a('name')}></label>
+      <label class="field"><span>Units</span><input type="number" inputmode="decimal" step="0.5" min="0" value="${esc(r.units)}" ${a('units')}></label>
+      <label class="field"><span>Final subject grade (%)</span><input type="number" inputmode="decimal" step="any" min="0" max="100" value="${esc(r.pct)}" ${a('pct')} ${isBlank(r.gp) ? '' : 'disabled'}></label>
+      <label class="field"><span>Grade point</span><select ${a('gp')}>
+        <option value="" ${isBlank(r.gp) ? 'selected' : ''}>Compute from %</option>
+        ${GP_CHOICES.map(gp => `<option value="${gp}" ${String(r.gp) === String(gp) ? 'selected' : ''}>${fmtGP(gp)} — ${gpEntry(gp).desc}</option>`).join('')}
+        <option value="INC" ${r.gp === 'INC' ? 'selected' : ''}>INC — Incomplete</option>
+        <option value="DRP" ${r.gp === 'DRP' ? 'selected' : ''}>DRP — Dropped</option>
+      </select></label>
+      <button class="icon-btn" data-action="remove-gpa-row" data-id="${r.id}" aria-label="Remove subject ${i + 1}" title="Remove">${icon('trash')}</button>
+      <div class="gpa-out" data-gpa-out="${r.id}"></div>
+    </div>`;
+  }
+
+  function renderGPA() {
+    const el = $('#view-gpa');
+    const rows = state.gpaRows;
+    el.innerHTML = `<div class="calc-layout">
+      <div class="stack"><div class="card">
+        <div class="card-head"><div><h2>GPA Calculator</h2><p class="muted small">GPA = Σ(Grade point × Units) ÷ Total units. For each subject, enter its final subject grade (%) or pick its grade point directly.</p></div></div>
+        ${rows.length ? `<div class="gpa-list">${rows.map(gpaRowHtml).join('')}</div>` : '<div class="empty-inline">No subjects yet. Add one below.</div>'}
+        <div class="row mt"><button class="btn secondary" data-action="add-gpa-row">${icon('plus')}Add subject</button>
+          ${rows.length ? '<button class="btn ghost sm" data-action="clear-gpa">Clear all</button>' : ''}</div>
+      </div>
+      ${scaleCard()}</div>
+      <div class="card result-card" aria-live="polite" id="results-gpa"></div>
+    </div>`;
+    updateGPA();
+  }
+
+  function updateGPA() {
+    const box = $('#results-gpa');
+    if (!box) return;
+    const res = computeGPA(state.gpaRows);
+    res.included.forEach(x => {
+      const out = $(`[data-gpa-out="${x.r.id}"]`);
+      if (out) out.innerHTML = `${x.g.fromPct ? `${fmt(x.g.pct)}% → ` : ''}${gradeBadge(x.g)} × ${x.units} unit${x.units === 1 ? '' : 's'} = <strong>${fmt(x.weighted)}</strong>`;
+    });
+    res.excluded.forEach(x => {
+      const out = $(`[data-gpa-out="${x.r.id}"]`);
+      if (out) out.innerHTML = `<span class="muted">Not counted: ${esc(x.reason)}</span>`;
+    });
+    const gpaF = fmtGPA(res.gpa);
+    if (res.gpa === null) {
+      box.innerHTML = `<h2>GPA</h2><p class="muted small">Enter at least one subject with units and a grade to compute your GPA.</p>`;
+      return;
+    }
+    const computation = `(${res.included.map(x => `${fmtGP(x.g.gp)}×${x.units}`).join(' + ')}) ÷ ${res.totalUnits} = ${fmt(res.totalWeighted)} ÷ ${res.totalUnits} = ${gpaF.text}`;
+    box.innerHTML = `<h2>GPA</h2>
+      <div class="result-big mt"><span class="num">${gpaF.text}</span></div>
+      <dl class="kv"><dt>Subjects counted</dt><dd>${res.included.length} / ${state.gpaRows.length}</dd><dt>Total units</dt><dd>${res.totalUnits}</dd><dt>Σ Grade point × units</dt><dd>${fmt(res.totalWeighted)}</dd></dl>
+      ${scholarBlock(res.cls, gpaF.text)}
+      ${gpaF.extended ? '<div class="alert info small">GPA is shown with extra decimals because rounding to two places would misstate the classification.</div>' : ''}
+      <div class="steps"><h4>Computation</h4><ol>
+        <li>GPA = Σ(Grade point × Units) ÷ Total units<code class="formula">${esc(computation)}</code></li>
+        <li>Classification uses the unrounded GPA: 1.00–1.30 University Scholar · above 1.30–1.50 College Scholar · above 1.50 none.</li>
+      </ol></div>
+      ${res.excluded.length ? `<div class="alert warn"><strong>Not counted (${res.excluded.length})</strong><ul>${res.excluded.map(x => `<li>${esc(x.label)}: ${esc(x.reason)}</li>`).join('')}</ul></div>` : ''}`;
+  }
+
+  /* ---------------------------------------------------------
+     9. Actions
+     --------------------------------------------------------- */
+  function getTarget(d, catKey, itemId) {
+    if (catKey === EXAMS) return d.exams.find(x => x.id === itemId) || null;
+    const cat = (d.cats || []).find(c => c.id === catKey);
+    if (!cat) return null;
+    return itemId ? cat.items.find(x => x.id === itemId) || null : cat;
+  }
+
+  async function distribute(calc) {
+    const d = state.drafts[calc];
+    const res = calc === 'initial' ? computeInitial(d) : computePeriod(d);
+    const remaining = res.allocation.remaining;
+    if (!(remaining > 0) || !d.cats.length) return;
+    const unweighted = d.cats.filter(c => isBlank(c.weight));
+    const targets = unweighted.length ? unweighted : d.cats;
+    const each = Math.floor(remaining / targets.length * 100) / 100;
+    const last = snap(remaining - each * (targets.length - 1));
+    const plan = targets.map((c, i) => ({ c, add: i === targets.length - 1 ? last : each }));
+    const ok = await openModal({
+      title: 'Distribute remaining weight',
+      body: `<p>Split the remaining <strong>${remaining}%</strong> equally among ${unweighted.length ? 'the categories without a weight' : 'all categories'}:</p>
+        <div class="table-wrap"><table><thead><tr><th>Category</th><th class="num">Current</th><th class="num">New</th></tr></thead><tbody>
+        ${plan.map(p => `<tr><td>${esc(p.c.name || 'Unnamed')}</td><td class="num">${isBlank(p.c.weight) ? 'unset' : p.c.weight + '%'}</td><td class="num">${snap((num(p.c.weight) || 0) + p.add)}%</td></tr>`).join('')}
+        </tbody></table></div><p class="tiny muted">You can still edit each weight afterwards.</p>`,
+      buttons: [{ label: 'Cancel', class: 'ghost', value: false }, { label: 'Apply', value: true }]
+    });
+    if (!ok) return;
+    plan.forEach(p => { p.c.weight = String(snap((num(p.c.weight) || 0) + p.add)); });
+    render();
+  }
+
+  async function onClick(e) {
+    if (e.target.closest('[data-modal-close]') || e.target === $('#modal')) { closeModal(null); return; }
+    const t = e.target.closest('[data-action]');
+    if (!t) return;
+    const a = t.dataset.action;
+    const calc = t.dataset.calc;
+    const d = calc ? state.drafts[calc] : null;
+    switch (a) {
+      case 'add-cat': {
+        const cat = newCat(t.dataset.name || '');
+        d.cats.push(cat);
+        render();
+        const sel = t.dataset.name ? `[data-cat="${cat.id}"][data-field="weight"]` : `[data-cat="${cat.id}"][data-field="name"]`;
+        const inp = $(`[data-calc="${calc}"]${sel}`);
+        if (inp) inp.focus();
+        break;
+      }
+      case 'remove-cat': d.cats = d.cats.filter(c => c.id !== t.dataset.cat); render(); break;
+      case 'add-item': {
+        const it = newItem();
+        if (t.dataset.cat === EXAMS) d.exams.push(it);
+        else { const cat = getTarget(d, t.dataset.cat, ''); if (cat) cat.items.push(it); }
+        render();
+        const inp = $(`[data-calc="${calc}"][data-item="${it.id}"][data-field="${t.dataset.cat === EXAMS ? 'name' : 'earned'}"]`);
+        if (inp) inp.focus();
+        break;
+      }
+      case 'remove-item': {
+        if (t.dataset.cat === EXAMS) d.exams = d.exams.filter(x => x.id !== t.dataset.item);
+        else { const cat = getTarget(d, t.dataset.cat, ''); if (cat) cat.items = cat.items.filter(x => x.id !== t.dataset.item); }
+        render();
+        break;
+      }
+      case 'reset-calc': {
+        const ok = await confirmDialog('Clear calculator?', 'This removes every entry in this calculator.', 'Clear');
+        if (!ok) return;
+        state.drafts[calc] = calc === 'initial' ? newInitialDraft() : newPeriodDraft(calc === 'midterm' ? 'Midterm Examination' : 'Final Examination');
+        showBlankErrors[calc] = false;
+        render();
+        break;
+      }
+      case 'distribute': distribute(calc); break;
+      case 'use-calc': {
+        const r = computePeriod(state.drafts[t.dataset.kind]);
+        if (!r.ok) return;
+        state.drafts[t.dataset.into][t.dataset.kind] = String(r.grade);
+        render();
+        break;
+      }
+      case 'fsg-to-gpa': {
+        const { errors, m, f } = readFsg();
+        if (errors.length) return;
+        const fsg = computeFSG(m, f);
+        const blank = state.gpaRows.find(r => isBlank(r.name) && isBlank(r.pct) && isBlank(r.gp));
+        if (blank) blank.pct = String(fsg); else state.gpaRows.push(newGpaRow(String(fsg)));
+        toast(`Added ${fmt(fsg)}% to the GPA calculator.`, 'success');
+        break;
+      }
+      case 'add-gpa-row': {
+        const row = newGpaRow();
+        state.gpaRows.push(row);
+        renderGPA();
+        const inp = $(`[data-gpa-id="${row.id}"][data-gpa-field="name"]`);
+        if (inp) inp.focus();
+        break;
+      }
+      case 'remove-gpa-row': state.gpaRows = state.gpaRows.filter(r => r.id !== t.dataset.id); renderGPA(); break;
+      case 'clear-gpa': {
+        const ok = await confirmDialog('Clear all subjects?', 'This removes every subject from the GPA calculator.', 'Clear');
+        if (!ok) return;
+        state.gpaRows = [newGpaRow()];
+        renderGPA();
+        break;
+      }
+      default: break;
+    }
+  }
+
+  function onInput(e) {
+    const t = e.target;
+    if (t.dataset.calc && t.dataset.field) {
+      const target = getTarget(state.drafts[t.dataset.calc], t.dataset.cat, t.dataset.item);
+      if (!target) return;
+      target[t.dataset.field] = t.value;
+      showBlankErrors[t.dataset.calc] = true;
+      updateCalcResults(t.dataset.calc);
+      return;
+    }
+    if (t.dataset.fsg) { state.drafts.fsg[t.dataset.fsg] = t.value; updateFsg(); return; }
+    if (t.dataset.wf) {
+      if (t.dataset.wf === 'targetGP') return; // handled on change
+      state.drafts.whatif[t.dataset.wf] = t.value;
+      if (t.dataset.wf === 'final') $$('[data-wf="final"]').forEach(x => { if (x !== t) x.value = t.value; });
+      updateWhatIf();
+      return;
+    }
+    if (t.dataset.gpaId) {
+      const row = state.gpaRows.find(r => r.id === t.dataset.gpaId);
+      if (!row) return;
+      row[t.dataset.gpaField] = t.value;
+      if (t.dataset.gpaField === 'gp') {
+        const pctInput = $(`[data-gpa-id="${row.id}"][data-gpa-field="pct"]`);
+        if (pctInput) pctInput.disabled = !isBlank(row.gp);
+      }
+      updateGPA();
+    }
+  }
+
+  function onChange(e) {
+    const t = e.target;
+    const a = t.dataset.action;
+    if (a === 'set-method') { state.drafts[t.dataset.calc].method = t.value; render(); return; }
+    if (a === 'toggle-extra') { state.drafts[t.dataset.calc].extra = t.checked; updateCalcResults(t.dataset.calc); return; }
+    if (t.dataset.wf === 'targetGP') { state.drafts.whatif.targetGP = t.value; state.drafts.whatif.targetPct = ''; render(); return; }
+    if (t.dataset.setting === 'rounding') { state.settings.rounding = ROUNDING[t.value] ? t.value : 'strict'; render(); }
+  }
+
+  function init() {
+    // category name suggestions
+    const dl = document.createElement('datalist');
+    dl.id = 'dl-categories';
+    dl.innerHTML = CATEGORY_SUGGESTIONS.map(n => `<option value="${n}">`).join('');
+    document.body.appendChild(dl);
+
+    document.addEventListener('click', onClick);
+    document.addEventListener('input', onInput);
+    document.addEventListener('change', onChange);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#modal').hidden) closeModal(null); });
+    window.addEventListener('hashchange', () => { render(); window.scrollTo({ top: 0 }); });
+    if (!location.hash) history.replaceState(null, '', '#/calculator/initial');
+    render();
+  }
+
+  // Expose pure functions for testing in Node; start the app in the browser.
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { scorePct, convertGrade, classify, fmtGPA, computeInitial, computePeriod, computeFSG, computeGPA, newItem, newCat };
+  }
+  if (typeof document !== 'undefined' && document.getElementById('main')) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  }
+})();
+</script>
+</body>
+</html>

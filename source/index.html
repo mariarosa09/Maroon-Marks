@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7a0f14">
+  <meta name="description" content="MSEUF Grade Calculator — compute initial, midterm, final and final subject grades, GPA and scholar classification.">
+  <title>MSEUF Grade Calculator</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <div class="app">
+    <!-- Sidebar (desktop) -->
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">EU</div>
+        <div class="brand-text">
+          <strong>MSEUF</strong>
+          <span>Grade Calculator</span>
+        </div>
+      </div>
+      <nav class="nav" id="sideNav"></nav>
+      <p class="sidebar-foot">Unofficial student tool. Always confirm grades with the Registrar.</p>
+    </aside>
+
+    <div class="content">
+      <header class="topbar">
+        <div class="topbar-brand">
+          <div class="brand-mark sm" aria-hidden="true">EU</div>
+          <strong>MSEUF Grade Calculator</strong>
+        </div>
+        <h1 id="pageTitle" class="page-title">Grade Calculator</h1>
+      </header>
+
+      <main id="main" tabindex="-1">
+        <section class="view" id="view-calculator" data-title="Grade Calculator"></section>
+        <section class="view" id="view-gpa" data-title="GPA Calculator"></section>
+      </main>
+
+      <footer class="app-footer">
+        MSEUF Grade Calculator is a student-made estimation tool and is not an official Manuel S. Enverga University Foundation system.
+        Grading scale based on the MSEUF student handbook. Nothing you enter is saved — refreshing or closing the page clears everything.
+      </footer>
+    </div>
+
+    <!-- Bottom navigation (mobile) -->
+    <nav class="bottom-nav" id="bottomNav" aria-label="Main navigation"></nav>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <h2 id="modalTitle"></h2>
+        <button class="icon-btn" data-modal-close aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot" id="modalFoot"></div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toasts" aria-live="polite"></div>
+</body>
+</html>
