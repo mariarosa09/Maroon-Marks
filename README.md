@@ -13,6 +13,61 @@
   <a href="https://maroon-marks-tau.vercel.app"><strong>Open Maroon Marks</strong></a> · https://maroon-marks-tau.vercel.app
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-web-7a0f14" alt="Platform: Web">
+  <img src="https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white" alt="HTML5">
+  <img src="https://img.shields.io/badge/CSS3-1572B6?logo=css&logoColor=white" alt="CSS3">
+  <img src="https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript: vanilla">
+  <img src="https://img.shields.io/badge/backend-none-lightgrey" alt="Backend: none">
+  <img src="https://img.shields.io/badge/dependencies-0-success" alt="Dependencies: 0">
+  <br>
+  <img src="https://img.shields.io/badge/version-1.0.0-c9a227" alt="Version 1.0.0">
+  <a href="https://maroon-marks-tau.vercel.app"><img src="https://img.shields.io/badge/deployed_on-Vercel-black?logo=vercel" alt="Deployed on Vercel"></a>
+  <img src="https://img.shields.io/badge/offline-ready-17663f" alt="Offline ready">
+  <img src="https://img.shields.io/badge/data_stored-none-17663f" alt="Data stored: none">
+  <img src="https://img.shields.io/badge/mobile-responsive-1f4f7a" alt="Mobile responsive">
+</p>
+
+---
+
+## Table of contents
+
+- [At a glance](#at-a-glance)
+- [What it does](#what-it-does)
+- [Features](#features)
+  - [Grade Calculator](#grade-calculator)
+  - [GPA Calculator](#gpa-calculator)
+  - [MSEUF grading scale](#mseuf-grading-scale-student-handbook)
+- [Worked example: a midterm grade](#worked-example-a-midterm-grade)
+- [How to use it](#how-to-use-it)
+- [Your data and privacy](#your-data-and-privacy)
+- [Tech stack](#tech-stack)
+- [Browser support](#browser-support)
+- [Running it](#running-it)
+- [Deploying](#deploying)
+- [Project structure](#project-structure)
+- [Accessibility](#accessibility)
+- [Changelog](#changelog)
+- [Feedback and issues](#feedback-and-issues)
+- [Disclaimer](#disclaimer)
+
+---
+
+## At a glance
+
+| | |
+|---|---|
+| **Platform** | Web (desktop and mobile browsers) |
+| **Frontend** | HTML5, CSS3, vanilla JavaScript (ES2020) |
+| **Backend** | None: everything runs in the browser |
+| **Database / storage** | None: data lives in memory and clears on refresh |
+| **Dependencies** | 0 (no frameworks, libraries or CDN files) |
+| **Build step** | None |
+| **Hosting** | Vercel (static); works on any static host |
+| **Offline** | Yes, as a single file: `prototype/maroon-marks.html` |
+| **Version** | 1.0.0 |
+| **Live app** | https://maroon-marks-tau.vercel.app |
+
 ---
 
 ## What it does
@@ -172,6 +227,32 @@ between 92–94 and 95–97, is flagged **Needs review** unless you choose a rou
 
 ---
 
+## Tech stack
+
+| Layer | Technology | Notes |
+|---|---|---|
+| Markup | HTML5 | One page shell (`index.html`); each view is rendered into it by JavaScript. |
+| Styling | CSS3 | Custom properties for the maroon-and-gold theme; CSS Grid and Flexbox; responsive breakpoints at 1180px, 900px and 640px. |
+| Logic | Vanilla JavaScript (ES2020) | No framework. Pure functions for the grade math, separate from rendering. |
+| Routing | URL hash (`#/calculator/midterm`, `#/gpa`) | Tabs keep their own address, and the browser's back button works. |
+| State | In-memory JavaScript object | Never written to LocalStorage, cookies or a server. |
+| UI controls | Custom-built | Themed dropdowns and category suggestions replace the browser-drawn menus. |
+| Hosting | Vercel (static) | `vercel.json` serves the `source/` folder. |
+
+## Browser support
+
+| Browser | Supported |
+|---|---|
+| Google Chrome / Microsoft Edge (current) | ✅ |
+| Mozilla Firefox (current) | ✅ |
+| Safari on macOS and iOS (current) | ✅ |
+| Chrome on Android | ✅ |
+| Internet Explorer | ❌ |
+
+The layout adapts to phones, tablets and desktops. On phones, navigation moves to a bottom bar.
+
+---
+
 ## Running it
 
 You don't need to install or build anything.
@@ -202,6 +283,7 @@ All paths are relative, so the app also works from a subfolder. You can also hos
 
 ```
 ├── README.md
+├── vercel.json                # tells Vercel to serve the source/ folder
 ├── prototype/
 │   └── maroon-marks.html      # the whole app in one self-contained file
 └── source/
@@ -237,6 +319,35 @@ node -e "const A = require('./source/script.js'); console.log(A.computeFSG(94.25
 - Status colours always come with text labels, such as "✓ 1.50 · Superior" or "⚠ Needs review".
 - Result panels use `aria-live`, so screen readers announce updated grades.
 - The app respects your operating system's reduced-motion setting.
+
+---
+
+## Changelog
+
+### 1.0.0
+
+- Grade Calculator with Initial, Midterm, Final, Final Subject Grade and What-If Projection tabs.
+- Category weights split equally among their items. Major Examinations is fixed at 60% in Midterm and
+  Final, and optional in Initial Grade.
+- **Save** in Midterm and Final fills the Final Subject Grade tab automatically.
+- GPA Calculator using grade points and units, with the working shown as a table.
+- Scholar classification, including the rule that any 2.25–5.00, INC or DRP makes a student not eligible.
+- Units prompt before a Final Subject Grade is added to the GPA calculator.
+- Themed dropdowns and category suggestions, and a layout tuned for phones.
+- Compute-only: no saving, no backend, no external files.
+- Deployed on Vercel.
+
+---
+
+## Feedback and issues
+
+Found a wrong result or a layout problem? Open an issue on the
+[GitHub repository](https://github.com/mariarosa09/Maroon-Marks/issues). Please include:
+
+- the tab you were on;
+- the scores, weights or grade points you entered;
+- the result you expected and the result you got;
+- your browser and device.
 
 ---
 
