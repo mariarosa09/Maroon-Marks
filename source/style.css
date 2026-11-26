@@ -371,6 +371,10 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
 .scholar.college .scholar-icon { background: var(--maroon); color: #fff; }
 .scholar .congrats { font-size: 13px; margin-top: 2px; }
 .scholar.university .muted { color: rgba(255, 255, 255, .8); }
+.scholar.ineligible { border-color: #f3c7c3; background: var(--fail-bg); color: #7d1a14; }
+.scholar.ineligible .scholar-icon { background: var(--fail); color: #fff; font-size: 20px; }
+.scholar .disq { margin: 6px 0 4px; padding-left: 18px; font-size: 13px; }
+.scholar .disq strong { display: inline; font-size: inherit; }
 .celebrate { animation: pop .5s ease; }
 @keyframes pop { 0% { transform: scale(.97); } 60% { transform: scale(1.015); } 100% { transform: scale(1); } }
 

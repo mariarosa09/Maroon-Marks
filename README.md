@@ -80,6 +80,7 @@ minimum final grade you need. It also tells you if your target is already secure
 - Add subjects with an optional name, their **units** and their **grade point** (1.00–5.00, INC or DRP).
 - GPA = Σ(grade point × units) ÷ total units.
 - **INC** and **DRP** aren't numerical grade points, so the app excludes them from the GPA and lists them separately.
+  They still count against scholarship eligibility (see below).
 - From the Final Subject Grade tab, **Add to GPA calculator** asks for the subject's units, then adds it.
 - **Scholar classification (estimate):**
 
@@ -88,6 +89,11 @@ minimum final grade you need. It also tells you if your target is already secure
   | 1.00 – 1.30 | University Scholar |
   | above 1.30 – 1.50 | College Scholar |
   | above 1.50 | No scholar classification |
+
+  **Eligibility rule:** every subject must be **2.00 or better**. A grade of **2.25 to 5.00**, an **INC**
+  or a **DRP** in any subject makes the student **not eligible for a scholarship**, whatever the GPA.
+  For example, 1.00, 1.25, 1.50 and 2.25 average out to a GPA in the College Scholar range, but the 2.25
+  rules out the scholarship. The app shows "Not eligible for scholarship" and lists the subjects responsible.
 
   The classification always uses the unrounded GPA. If rounding to 2 decimals would put the GPA
   in a different band, the app shows more decimals.

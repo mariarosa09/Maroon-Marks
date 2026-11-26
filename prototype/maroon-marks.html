@@ -381,6 +381,10 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
 .scholar.college .scholar-icon { background: var(--maroon); color: #fff; }
 .scholar .congrats { font-size: 13px; margin-top: 2px; }
 .scholar.university .muted { color: rgba(255, 255, 255, .8); }
+.scholar.ineligible { border-color: #f3c7c3; background: var(--fail-bg); color: #7d1a14; }
+.scholar.ineligible .scholar-icon { background: var(--fail); color: #fff; font-size: 20px; }
+.scholar .disq { margin: 6px 0 4px; padding-left: 18px; font-size: 13px; }
+.scholar .disq strong { display: inline; font-size: inherit; }
 .celebrate { animation: pop .5s ease; }
 @keyframes pop { 0% { transform: scale(.97); } 60% { transform: scale(1.015); } 100% { transform: scale(1); } }
 
@@ -560,6 +564,7 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
   ];
   const FAIL = { level: 10, gp: 5.00, min: null, max: 74, desc: 'Failed' };
   const GP_CHOICES = SCALE.map(s => s.gp).concat([5.00]);
+  const SCHOLAR_LOWEST_GP = 2.00;   // a grade of 2.25–5.00, INC or DRP makes a student ineligible
 
   const CATEGORY_SUGGESTIONS = ['Quizzes', 'Assignments', 'Activities', 'Recitations', 'Seatwork', 'Laboratory Activities', 'Projects', 'Attendance'];
 
@@ -806,7 +811,19 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
     const totalUnits = sum(included.map(x => x.units));
     const totalWeighted = sum(included.map(x => x.weighted));
     const gpa = totalUnits > 0 ? snap(totalWeighted / totalUnits) : null;
-    return { included, excluded, totalUnits, totalWeighted, gpa, cls: classify(gpa) };
+    // Scholarship eligibility: any grade of 2.25 or lower (2.25–5.00), INC or DRP disqualifies,
+    // whatever the GPA.
+    const disqualifiers = [];
+    rows.forEach((r, idx) => {
+      const label = str(r.name).trim() || `Subject ${idx + 1}`;
+      if (r.gp === 'INC' || r.gp === 'DRP') disqualifiers.push({ label, grade: r.gp });
+      else if (!isBlank(r.gp) && Number(r.gp) > SCHOLAR_LOWEST_GP) disqualifiers.push({ label, grade: fmtGP(Number(r.gp)) });
+    });
+    let cls = classify(gpa);
+    if (cls && disqualifiers.length) {
+      cls = { key: 'ineligible', label: 'Not eligible for scholarship', range: cls.range, gpaBand: cls.label, disqualifiers };
+    }
+    return { included, excluded, totalUnits, totalWeighted, gpa, cls, disqualifiers };
   }
 
   /* ---------------------------------------------------------
@@ -1153,6 +1170,18 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
 
   function scholarBlock(cls, gpaText) {
     if (!cls) return '';
+    if (cls.key === 'ineligible') {
+      return `<div class="scholar ineligible" role="status">
+      <div class="scholar-icon" aria-hidden="true">✕</div>
+      <div>
+        <span class="small muted">Scholar classification (GPA-based estimate)</span>
+        <strong>${esc(cls.label)}</strong>
+        <div class="congrats">Any grade of 2.25 or lower (2.25–5.00), INC or DRP rules out a scholarship, whatever the GPA${cls.gpaBand !== 'No Scholar Classification' ? ` — even though GPA ${esc(gpaText)} is in the ${esc(cls.gpaBand)} range` : ''}.</div>
+        <ul class="disq">${cls.disqualifiers.map(d => `<li>${esc(d.label)}: <strong>${esc(d.grade)}</strong></li>`).join('')}</ul>
+        <div class="tiny muted">Not an official ruling — confirm scholarship requirements with MSEUF.</div>
+      </div>
+    </div>`;
+    }
     const iconTxt = cls.key === 'university' ? '★' : cls.key === 'college' ? '☆' : '•';
     const msg = cls.key === 'university' ? 'Your GPA is within the University Scholar range.'
       : cls.key === 'college' ? 'Your GPA is within the College Scholar range.'
@@ -1632,6 +1661,7 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
       <div class="steps"><h4>Computation</h4><ol>
         <li>GPA = Σ(Grade point × Units) ÷ Total units<code class="formula">${esc(computation)}</code></li>
         <li>Classification uses the unrounded GPA: 1.00–1.30 University Scholar · above 1.30–1.50 College Scholar · above 1.50 none.</li>
+        <li>Eligibility: every subject must be 2.00 or better. Any 2.25–5.00, INC or DRP means not eligible, regardless of GPA.</li>
       </ol></div>
       ${res.excluded.length ? `<div class="alert warn"><strong>Not counted (${res.excluded.length})</strong><ul>${res.excluded.map(x => `<li>${esc(x.label)}: ${esc(x.reason)}</li>`).join('')}</ul></div>` : ''}`;
   }
