@@ -388,12 +388,21 @@
       sel.dataset.enhanced = '1';
       const wrap = document.createElement('div');
       wrap.className = 'mm-select';
+      // A <label> forwards taps to its select, which on phones opens the native picker
+      // on top of ours. Turn the surrounding label into a plain div to stop that.
+      const lab = sel.closest('label');
+      if (lab) {
+        const div = document.createElement('div');
+        div.className = lab.className;
+        while (lab.firstChild) div.appendChild(lab.firstChild);
+        lab.replaceWith(div);
+      }
       sel.parentNode.insertBefore(wrap, sel);
-      wrap.appendChild(sel); // keep the select first so label clicks never re-trigger the button
+      wrap.appendChild(sel);
       sel.classList.add('mm-native');
       sel.tabIndex = -1;
       sel.setAttribute('aria-hidden', 'true');
-      const labelEl = sel.closest('label');
+      const labelEl = wrap.closest('.field');
       const labelText = labelEl && labelEl.querySelector('span') ? labelEl.querySelector('span').textContent.trim() : '';
       const listId = 'mm-' + uid();
       const btn = document.createElement('button');
@@ -454,7 +463,9 @@
     const wrap = openDropdown;
     openDropdown = null;
     wrap.classList.remove('open', 'up', 'right');
-    wrap.querySelector('.mm-list').hidden = true;
+    const list = wrap.querySelector('.mm-list');
+    list.hidden = true;
+    list.innerHTML = '';
     const btn = wrap.querySelector('.mm-trigger');
     btn.setAttribute('aria-expanded', 'false');
     btn.removeAttribute('aria-activedescendant');
@@ -1123,14 +1134,29 @@
       box.innerHTML = `<h2>GPA</h2><p class="muted small">Pick a grade point and enter units for at least one subject to compute your GPA.</p>`;
       return;
     }
-    const computation = `(${res.included.map(x => `${fmtGP(x.g.gp)}×${x.units}`).join(' + ')}) ÷ ${res.totalUnits} = ${fmt(res.totalWeighted)} ÷ ${res.totalUnits} = ${gpaF.text}`;
+    // Computation table: one row per subject (in the order entered), totals, then the division.
+    const rowsHtml = state.gpaRows.map((r, idx) => {
+      const inc = res.included.find(x => x.idx === idx);
+      const label = esc(str(r.name).trim() || `Subject ${idx + 1}`);
+      if (inc) return `<tr><td>${label}</td><td class="num">${fmtGP(inc.g.gp)}</td><td class="num">${inc.units}</td><td class="num">${fmt(inc.weighted)}</td></tr>`;
+      const gradeTxt = r.gp === 'INC' || r.gp === 'DRP' ? r.gp : isBlank(r.gp) ? '—' : fmtGP(Number(r.gp));
+      return `<tr class="row-excluded"><td>${label}<div class="tiny">Not counted</div></td><td class="num">${gradeTxt}</td><td class="num">${esc(str(r.units)) || '—'}</td><td class="num">—</td></tr>`;
+    }).join('');
     box.innerHTML = `<h2>GPA</h2>
       <div class="result-big mt"><span class="num">${gpaF.text}</span></div>
-      <dl class="kv"><dt>Subjects counted</dt><dd>${res.included.length} / ${state.gpaRows.length}</dd><dt>Total units</dt><dd>${res.totalUnits}</dd><dt>Σ Grade point × units</dt><dd>${fmt(res.totalWeighted)}</dd></dl>
       ${scholarBlock(res.cls, gpaF.text)}
       ${gpaF.extended ? '<div class="alert info small">GPA is shown with extra decimals because rounding to two places would misstate the classification.</div>' : ''}
-      <div class="steps"><h4>Computation</h4><ol>
-        <li>GPA = Σ(Grade point × Units) ÷ Total units<code class="formula">${esc(computation)}</code></li>
+      <h3 class="mt">Computation</h3>
+      <div class="table-wrap gpa-table"><table>
+        <thead><tr><th>Subject</th><th class="num">Grade</th><th class="num">Units</th><th class="num">Total<br><span class="th-sub">Grade × Units</span></th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+        <tfoot><tr><td>Total</td><td></td><td class="num">${res.totalUnits}</td><td class="num">${fmt(res.totalWeighted)}</td></tr></tfoot>
+      </table></div>
+      <div class="gpa-divide">
+        <span class="muted small">GPA = Total ÷ Total units</span>
+        <code class="formula">${fmt(res.totalWeighted)} ÷ ${res.totalUnits} = <strong>${gpaF.text}</strong></code>
+      </div>
+      <div class="steps"><h4>Scholar classification</h4><ol>
         <li>Classification uses the unrounded GPA: 1.00–1.30 University Scholar · above 1.30–1.50 College Scholar · above 1.50 none.</li>
         <li>Eligibility: every subject must be 2.00 or better. Any 2.25–5.00, INC or DRP means not eligible, regardless of GPA.</li>
       </ol></div>

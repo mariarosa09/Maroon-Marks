@@ -78,7 +78,16 @@ minimum final grade you need. It also tells you if your target is already secure
 ### GPA Calculator
 
 - Add subjects with an optional name, their **units** and their **grade point** (1.00–5.00, INC or DRP).
-- GPA = Σ(grade point × units) ÷ total units.
+- GPA = Σ(grade point × units) ÷ total units. The app shows the working as a table:
+
+  | Subject | Grade | Units | Total (Grade × Units) |
+  |---|---|---|---|
+  | CSAL102 | 1.50 | 3 | 4.50 |
+  | Subject 2 | 1.25 | 2 | 2.50 |
+  | **Total** | | **5** | **7.00** |
+
+  Then **GPA = Total ÷ Total units = 7.00 ÷ 5 = 1.40**. Subjects that aren't counted (INC, DRP or no
+  grade point yet) appear greyed out with "Not counted".
 - **INC** and **DRP** aren't numerical grade points, so the app excludes them from the GPA and lists them separately.
   They still count against scholarship eligibility (see below).
 - From the Final Subject Grade tab, **Add to GPA calculator** asks for the subject's units, then adds it.

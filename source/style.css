@@ -175,7 +175,7 @@ select option { color: var(--ink); background: #fff; }
 
 /* Custom dropdown (themed replacement for the OS-drawn select list) */
 .mm-select { position: relative; min-width: 0; }
-.mm-native { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.mm-native { display: none !important; }
 .mm-trigger {
   width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
   border: 1px solid #d9d1d1; border-radius: 9px; padding: 8px 11px; background: #fff; cursor: pointer;
@@ -375,6 +375,11 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
 .scholar.ineligible .scholar-icon { background: var(--fail); color: #fff; font-size: 20px; }
 .scholar .disq { margin: 6px 0 4px; padding-left: 18px; font-size: 13px; }
 .scholar .disq strong { display: inline; font-size: inherit; }
+.gpa-table th .th-sub { font-size: 10px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ink-3); }
+.gpa-table tr.row-excluded td { color: var(--ink-3); background: #fcfbfb; }
+.gpa-divide { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.gpa-divide .formula { font-size: 14px; white-space: normal; }
+.gpa-divide .formula strong { color: var(--maroon); }
 .celebrate { animation: pop .5s ease; }
 @keyframes pop { 0% { transform: scale(.97); } 60% { transform: scale(1.015); } 100% { transform: scale(1); } }
 
