@@ -847,9 +847,17 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
       $('#modalBody').innerHTML = body;
       const foot = $('#modalFoot');
       foot.innerHTML = buttons.map((b, i) => `<button class="btn ${b.class || ''}" data-modal-btn="${i}">${esc(b.label)}</button>`).join('');
-      $$('[data-modal-btn]', foot).forEach(btn => btn.addEventListener('click', () => closeModal(buttons[+btn.dataset.modalBtn].value)));
+      $$('[data-modal-btn]', foot).forEach(btn => btn.addEventListener('click', () => {
+        const b = buttons[+btn.dataset.modalBtn];
+        if (b.onClick && b.onClick() === false) return; // validation failed: keep the dialog open
+        closeModal(b.value);
+      }));
+      // Enter in a text field presses the last (primary) button
+      $$('#modalBody input').forEach(inp => inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); const btns = $$('[data-modal-btn]', foot); if (btns.length) btns[btns.length - 1].click(); }
+      }));
       $('#modal').hidden = false;
-      const first = $('[data-modal-btn]', foot) || $('[data-modal-close]');
+      const first = $('#modalBody input') || $('[data-modal-btn]', foot) || $('[data-modal-close]');
       if (first) first.focus();
     });
   }
@@ -1601,9 +1609,34 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
         if (errors.length) return;
         const c = convertGrade(computeFSG(m, f));
         if (c.review) { toast('This grade falls between handbook ranges — choose a rounding option first.', 'error'); return; }
+        let picked = null;
+        const added = await openModal({
+          title: 'Add to GPA calculator',
+          body: `<p class="small" style="margin-top:0">Grade point <strong>${fmtGP(c.gp)} · ${esc(c.desc)}</strong> will be added as a new subject.</p>
+            <div class="form-grid">
+              <label class="field"><span>Subject (optional)</span><input type="text" id="gpaAddName" maxlength="60" placeholder="e.g. CSAL102" autocomplete="off"></label>
+              <label class="field"><span>Units *</span><input type="number" id="gpaAddUnits" inputmode="decimal" step="0.5" min="0.5" max="30" value="3"></label>
+            </div>
+            <div class="alert error" id="gpaAddError" hidden></div>`,
+          buttons: [{ label: 'Cancel', class: 'ghost', value: false }, {
+            label: 'Add subject', value: true, onClick: () => {
+              const units = num($('#gpaAddUnits').value);
+              if (!(units > 0 && units <= 30)) {
+                const err = $('#gpaAddError'); err.hidden = false; err.textContent = 'Enter the number of units (greater than 0, up to 30).';
+                $('#gpaAddUnits').classList.add('invalid'); $('#gpaAddUnits').focus();
+                return false;
+              }
+              picked = { name: $('#gpaAddName').value.trim(), units: String(units) };
+              return true;
+            }
+          }]
+        });
+        if (!added || !picked) return;
         const blank = state.gpaRows.find(r => isBlank(r.name) && isBlank(r.gp));
-        if (blank) blank.gp = String(c.gp); else state.gpaRows.push(newGpaRow(String(c.gp)));
-        toast(`Added grade point ${fmtGP(c.gp)} to the GPA calculator.`, 'success');
+        const row = blank || newGpaRow();
+        Object.assign(row, { name: picked.name, units: picked.units, gp: String(c.gp) });
+        if (!blank) state.gpaRows.push(row);
+        toast(`Added ${picked.name || 'subject'} (${fmtGP(c.gp)}, ${picked.units} units) to the GPA calculator.`, 'success');
         break;
       }
       case 'add-gpa-row': {

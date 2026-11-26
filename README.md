@@ -1,4 +1,8 @@
-# Maroon Marks
+<p align="center">
+  <img src="source/assets/logo.png" alt="Maroon Marks logo" width="160">
+</p>
+
+<h1 align="center">Maroon Marks</h1>
 
 Compute-only grade and GPA calculator for Manuel S. Enverga University Foundation students.
 Built with HTML5, CSS3 and vanilla JavaScript. No libraries and no internet connection needed.
@@ -6,7 +10,6 @@ Built with HTML5, CSS3 and vanilla JavaScript. No libraries and no internet conn
 ## Folders
 - `source/`: the project code (`index.html`, `style.css`, `script.js`, plus the logo in `assets/`). Open `index.html` in a browser.
 - `prototype/`: `maroon-marks.html`, the same app in one self-contained file (logo built in).
-- `screenshots/`: captures of the earlier version. They still show the removed Dashboard, Subjects, History and Settings pages.
 
 ## Features
 - **Grade Calculator** with five tabs: Initial, Midterm, Final, Final Subject Grade and What-If Projection.
@@ -19,12 +22,19 @@ Built with HTML5, CSS3 and vanilla JavaScript. No libraries and no internet conn
   the Final Subject Grade tab (and the What-If midterm).
 - Final Subject Grade = Midterm × 0.40 + Final × 0.60, converted with the MSEUF handbook scale.
 - **GPA Calculator:** pick each subject's grade point and enter its units.
+  The Final Subject Grade tab can also add its grade point here; it asks for the subject's units first.
   It shows your GPA weighted by units and a University Scholar (1.00–1.30) or College Scholar (>1.30–1.50) estimate.
 
 ## Data
 Nothing is saved. Everything you type stays only in the open page, in memory, and you can
 move between tabs without losing it. Refreshing or closing the page clears everything.
 The app uses no LocalStorage, cookies or server.
+
+## Deploying
+The app is a static website: no build step, no server code and no database. Upload the contents of
+`source/` (with `index.html` at the top level) to any static host, such as GitHub Pages, Netlify,
+Vercel or Cloudflare Pages. All paths are relative, so it also works from a subfolder.
+`prototype/maroon-marks.html` is the same app as one file and can be hosted on its own.
 
 ## Notes
 - Default rounding is none. Grades that fall between handbook ranges (e.g. 94.5) are flagged for review.
