@@ -203,6 +203,10 @@ select option { color: var(--ink); background: #fff; }
 .mm-option:hover, .mm-option.active { background: var(--maroon-50); color: var(--maroon); }
 .mm-option.selected { font-weight: 700; color: var(--maroon); }
 .mm-option.selected::after { content: "✓"; font-weight: 800; }
+.suggest-host { position: relative; }
+.suggest-list { right: 0; width: auto; max-width: none; }
+.suggest-host.up .suggest-list { top: auto; bottom: calc(100% + 6px); }
+.suggest-list .mm-option mark { background: none; color: inherit; font-weight: 800; }
 
 
 /* Checkboxes and radios */
@@ -375,7 +379,10 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
 
 /* What-if */
 .estimate-banner svg { width: 16px; height: 16px; flex: none; }
-.save-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; padding: 12px; border: 1px dashed var(--maroon-100); border-radius: 12px; background: #fff; }
+.result-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.result-head h2 { margin: 0; min-width: 0; }
+.result-head > .btn { flex: none; }
+.result-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 10px 0 12px; }
 .ok-text { color: var(--excellent) !important; font-weight: 600; }
 .estimate-banner { display: flex; gap: 8px; align-items: center; background: #efeaff; color: #4b3a8f; border: 1px solid #d8cff7; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
 .slider-row { display: grid; grid-template-columns: 1fr 110px; gap: 12px; align-items: center; }
@@ -430,8 +437,10 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
   .cat-head { grid-template-columns: 1fr auto; }
   .cat-head .f-name { grid-column: 1 / -1; }
   .item-row, .item-row.named { grid-template-columns: 1fr 1fr auto; }
-  .gpa-row { grid-template-columns: 1fr 1fr; }
-  .gpa-row .icon-btn { justify-self: end; }
+  .gpa-row { grid-template-columns: minmax(0, .75fr) minmax(0, 1.6fr) auto; }
+  th, td { padding: 8px 7px; }
+  table { font-size: 13px; }
+  th { font-size: 11px; letter-spacing: .2px; }
   .item-row .f-name, .item-row .item-label, .gpa-row .field:first-child { grid-column: 1 / -1; }
   .item-label { padding-top: 0; }
   .form-grid { grid-template-columns: 1fr; }

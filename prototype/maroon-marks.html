@@ -213,6 +213,10 @@ select option { color: var(--ink); background: #fff; }
 .mm-option:hover, .mm-option.active { background: var(--maroon-50); color: var(--maroon); }
 .mm-option.selected { font-weight: 700; color: var(--maroon); }
 .mm-option.selected::after { content: "✓"; font-weight: 800; }
+.suggest-host { position: relative; }
+.suggest-list { right: 0; width: auto; max-width: none; }
+.suggest-host.up .suggest-list { top: auto; bottom: calc(100% + 6px); }
+.suggest-list .mm-option mark { background: none; color: inherit; font-weight: 800; }
 
 
 /* Checkboxes and radios */
@@ -385,7 +389,10 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
 
 /* What-if */
 .estimate-banner svg { width: 16px; height: 16px; flex: none; }
-.save-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; padding: 12px; border: 1px dashed var(--maroon-100); border-radius: 12px; background: #fff; }
+.result-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.result-head h2 { margin: 0; min-width: 0; }
+.result-head > .btn { flex: none; }
+.result-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 10px 0 12px; }
 .ok-text { color: var(--excellent) !important; font-weight: 600; }
 .estimate-banner { display: flex; gap: 8px; align-items: center; background: #efeaff; color: #4b3a8f; border: 1px solid #d8cff7; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
 .slider-row { display: grid; grid-template-columns: 1fr 110px; gap: 12px; align-items: center; }
@@ -440,8 +447,10 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
   .cat-head { grid-template-columns: 1fr auto; }
   .cat-head .f-name { grid-column: 1 / -1; }
   .item-row, .item-row.named { grid-template-columns: 1fr 1fr auto; }
-  .gpa-row { grid-template-columns: 1fr 1fr; }
-  .gpa-row .icon-btn { justify-self: end; }
+  .gpa-row { grid-template-columns: minmax(0, .75fr) minmax(0, 1.6fr) auto; }
+  th, td { padding: 8px 7px; }
+  table { font-size: 13px; }
+  th { font-size: 11px; letter-spacing: .2px; }
   .item-row .f-name, .item-row .item-label, .gpa-row .field:first-child { grid-column: 1 / -1; }
   .item-label { padding-top: 0; }
   .form-grid { grid-template-columns: 1fr; }
@@ -576,6 +585,7 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
     gpa: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+    save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
     target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>'
   };
   const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
@@ -1029,6 +1039,109 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
     }
   }
 
+  /* ---------------------------------------------------------
+     5c. Category-name suggestions
+     A themed replacement for the browser's <datalist> popup, which is drawn
+     by the browser and cannot be styled. Uses the same look as the dropdowns.
+     --------------------------------------------------------- */
+  let openSuggest = null;     // { input, host, list, items, active }
+  let suggestPicking = false; // true while a picked value is being written back
+
+  const suggestNames = (kind) => (kind === 'initial' ? ['Examinations'] : []).concat(CATEGORY_SUGGESTIONS);
+
+  function showSuggest(input) {
+    const q = input.value.trim().toLowerCase();
+    const items = suggestNames(input.dataset.suggest).filter(n => n.toLowerCase() !== q && (!q || n.toLowerCase().includes(q)));
+    if (openSuggest && openSuggest.input !== input) closeSuggest();
+    if (!items.length) { closeSuggest(); return; }
+    closeSelect(false);
+    let s = openSuggest;
+    if (!s) {
+      const host = input.closest('.field') || input.parentNode;
+      host.classList.add('suggest-host');
+      const list = document.createElement('ul');
+      list.className = 'mm-list suggest-list';
+      list.id = 'sg-' + uid();
+      list.setAttribute('role', 'listbox');
+      // keep focus in the input while choosing with the mouse / finger
+      list.addEventListener('mousedown', (e) => e.preventDefault());
+      host.appendChild(list);
+      input.setAttribute('aria-controls', list.id);
+      input.setAttribute('aria-expanded', 'true');
+      s = openSuggest = { input, host, list, items: [], active: -1 };
+    }
+    s.items = items;
+    s.active = -1;
+    const hi = (n) => {
+      const i = q ? n.toLowerCase().indexOf(q) : -1;
+      return `<span>${i < 0 ? esc(n) : `${esc(n.slice(0, i))}<mark>${esc(n.slice(i, i + q.length))}</mark>${esc(n.slice(i + q.length))}`}</span>`;
+    };
+    s.list.innerHTML = items.map((n, i) => `<li role="option" class="mm-option suggest-option" id="${s.list.id}-${i}" data-index="${i}" aria-selected="false">${hi(n)}</li>`).join('');
+    const r = input.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom;
+    s.host.classList.toggle('up', below < Math.min(280, s.list.scrollHeight) + 16 && r.top > below);
+    input.removeAttribute('aria-activedescendant');
+  }
+
+  function setSuggestActive(i) {
+    const s = openSuggest;
+    if (!s) return;
+    const lis = s.list.querySelectorAll('.suggest-option');
+    s.active = (i + lis.length) % lis.length;
+    lis.forEach((li, k) => { li.classList.toggle('active', k === s.active); li.setAttribute('aria-selected', String(k === s.active)); });
+    const li = lis[s.active];
+    if (li.offsetTop < s.list.scrollTop) s.list.scrollTop = li.offsetTop - 6;
+    else if (li.offsetTop + li.offsetHeight > s.list.scrollTop + s.list.clientHeight) s.list.scrollTop = li.offsetTop + li.offsetHeight - s.list.clientHeight + 6;
+    s.input.setAttribute('aria-activedescendant', li.id);
+  }
+
+  function closeSuggest() {
+    const s = openSuggest;
+    if (!s) return;
+    openSuggest = null;
+    s.list.remove();
+    s.host.classList.remove('suggest-host', 'up');
+    s.input.setAttribute('aria-expanded', 'false');
+    s.input.removeAttribute('aria-activedescendant');
+  }
+
+  function pickSuggest(i) {
+    const s = openSuggest;
+    if (!s || !s.items[i]) return;
+    const input = s.input;
+    closeSuggest();
+    input.value = s.items[i];
+    suggestPicking = true;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    suggestPicking = false;
+    // after naming a category, the weight is usually the next thing to fill in
+    const weight = $(`[data-calc="${input.dataset.calc}"][data-cat="${input.dataset.cat}"][data-field="weight"]`);
+    if (weight && isBlank(weight.value)) weight.focus(); else input.focus();
+  }
+
+  function suggestClick(e) {
+    const opt = e.target.closest('.suggest-option');
+    if (opt) { pickSuggest(+opt.dataset.index); return true; }
+    if (openSuggest && e.target !== openSuggest.input) closeSuggest();
+    return false;
+  }
+
+  function suggestKey(e) {
+    const s = openSuggest;
+    if (!s || e.target !== s.input) return false;
+    switch (e.key) {
+      case 'ArrowDown': e.preventDefault(); setSuggestActive(s.active + 1); return true;
+      case 'ArrowUp': e.preventDefault(); setSuggestActive(s.active < 0 ? -1 : s.active - 1); return true;
+      case 'Enter':
+        if (s.active >= 0) { e.preventDefault(); pickSuggest(s.active); return true; }
+        closeSuggest();
+        return true;
+      case 'Escape': e.preventDefault(); closeSuggest(); return true;
+      case 'Tab': closeSuggest(); return false;
+      default: return false;
+    }
+  }
+
   function gradeBadge(g) {
     if (!g || g.pending) return '<span class="badge pending">No grade yet</span>';
     if (g.review) return '<span class="badge review" title="Between handbook ranges — review needed">⚠ Needs review</span>';
@@ -1154,7 +1267,7 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
     if (!cats.length) return `<div class="empty-inline">${emptyText}</div>`;
     return `<div class="cat-list">${cats.map((c, ci) => `<div class="cat-card">
       <div class="cat-head">
-        <label class="field f-name"><span>Category ${ci + 1 + offset}</span><input type="text" list="dl-categories" value="${esc(c.name)}" placeholder="e.g. Quizzes" ${dataAttrs(calc, c.id, '', 'name')} autocomplete="off"></label>
+        <label class="field f-name"><span>Category ${ci + 1 + offset}</span><input type="text" value="${esc(c.name)}" placeholder="e.g. Quizzes" ${dataAttrs(calc, c.id, '', 'name')} data-suggest="${calc === 'initial' ? 'initial' : 'period'}" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off"></label>
         <label class="field"><span>Category weight</span><div class="input-suffix" data-suffix="%"><input type="number" inputmode="decimal" step="any" min="0" value="${esc(c.weight)}" placeholder="e.g. 10" ${dataAttrs(calc, c.id, '', 'weight')}></div></label>
         <button class="icon-btn" data-action="remove-cat" data-calc="${calc}" data-cat="${c.id}" aria-label="Remove ${esc(catName(c, ci))}" title="Remove category">${icon('trash')}</button>
       </div>
@@ -1313,8 +1426,10 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
 
     const title = calc === 'midterm' ? 'Midterm' : 'Final';
     const examGroup = { name: 'Major Examinations', weight: EXAM_SHARE_PCT, n: res.examRows.length, share: res.examRows[0].share, avgPct: res.examPct, contribution: res.examContribution, items: res.examRows };
-    box.innerHTML = `<div class="row between"><h2>${title} grade</h2>${methodBadge(res.method)}</div>
-      <div class="result-big mt"><span class="num">${fmt(res.grade)}</span><span class="unit">%</span></div>
+    const sb = saveBar(calc, title, res.grade);
+    box.innerHTML = `<div class="result-head"><h2>${title} grade</h2>${sb.button}</div>
+      <div class="result-sub">${methodBadge(res.method)}<span class="tiny muted">${sb.note}</span></div>
+      <div class="result-big"><span class="num">${fmt(res.grade)}</span><span class="unit">%</span></div>
       ${alertList('warn', 'Heads up', res.warnings.map(esc))}
       <dl class="kv">
         <dt>Major examinations (60%)</dt><dd>${fmt(res.examContribution)} pts</dd>
@@ -1327,19 +1442,21 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
         ${res.catRows.map(groupStep).join('')}
         <li>${title} grade = sum of all category points<code class="formula">${[res.examContribution].concat(res.catRows.map(c => c.contribution)).map(v => fmt(v)).join(' + ')} = ${fmt(res.grade)}%</code></li>
       </ol></div>
-      ${saveBar(calc, title, res.grade)}
       ${equivalentBlock(res.grade)}
       <p class="tiny muted">The handbook scale officially applies to final subject grades; the equivalent above is for reference only.</p>`;
   }
 
-  /** Save the Midterm / Final result so it fills the Final Subject Grade tab (memory only). */
+  /** Save button + note for the Midterm / Final result: saving fills the Final Subject Grade tab (memory only). */
   function saveBar(calc, title, grade) {
     const saved = state.saved[calc];
     const same = saved !== null && snap(saved) === snap(grade);
     const dest = calc === 'midterm' ? 'Final Subject Grade and What-If' : 'Final Subject Grade';
     const note = saved === null ? `Fills the ${title.toLowerCase()} grade in ${dest}.`
       : same ? `Filled in ${dest}.` : `Saved value is ${fmt(saved)}% — save again to update it.`;
-    return `<div class="save-bar"><button class="btn ${same ? 'secondary' : ''}" data-action="save-period" data-calc="${calc}">${same ? '✓ Saved' : `Save ${title.toLowerCase()} grade`}</button><span class="tiny muted">${note}</span></div>`;
+    return {
+      button: `<button class="btn sm ${same ? 'secondary' : ''}" data-action="save-period" data-calc="${calc}">${same ? '✓ Saved' : `${icon('save')}Save ${title.toLowerCase()} grade`}</button>`,
+      note
+    };
   }
 
   const savedHint = (kind, value) => {
@@ -1379,7 +1496,8 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
     if (errors.length) { box.innerHTML = `<h2>Result</h2>${alertList('error', 'Missing or invalid grades', errors)}`; return; }
     const fsg = computeFSG(m, f);
     const c = convertGrade(fsg);
-    box.innerHTML = `<h2>Final subject grade</h2>
+    const addBtn = c.review ? '' : `<button class="btn sm secondary" data-action="fsg-to-gpa">${icon('plus')}Add ${fmtGP(c.gp)} to GPA</button>`;
+    box.innerHTML = `<div class="result-head"><h2>Final subject grade</h2>${addBtn}</div>
       <div class="result-big mt"><span class="num">${fmt(fsg)}</span><span class="unit">%</span></div>
       ${c.review ? `<div class="alert warn"><strong>Needs review</strong><br>${esc(c.message)}</div>` : `
       <dl class="kv"><dt>Grade point</dt><dd style="font-size:20px">${fmtGP(c.gp)}</dd><dt>Description</dt><dd>${esc(c.desc)}</dd><dt>Status</dt><dd>${gradeBadge(c)}</dd><dt>Percentage range</dt><dd>${c.range}</dd>${c.note ? `<dt>Rounding</dt><dd class="small">${esc(c.note)}</dd>` : ''}</dl>
@@ -1390,7 +1508,7 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
         <li>Final subject grade<code class="formula">${fmt(snap(m * FSG_MID))} + ${fmt(snap(f * FSG_FIN))} = ${fmt(fsg)}%</code></li>
         ${c.review ? '' : `<li>Convert using the MSEUF scale<code class="formula">${fmt(c.used, Number.isInteger(c.used) ? 0 : 2)}% → ${c.range} → ${fmtGP(c.gp)} (${esc(c.desc)})</code></li>`}
       </ol></div>
-      ${c.review ? '' : `<div class="row mt"><button class="btn secondary" data-action="fsg-to-gpa">${icon('plus')}Add ${fmtGP(c.gp)} to GPA calculator</button></div>`}`;
+      `;
   }
 
   /* ---- What-if ---- */
@@ -1552,6 +1670,7 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
   }
 
   async function onClick(e) {
+    if (suggestClick(e)) return;
     if (dropdownClick(e)) return;
     if (e.target.closest('[data-modal-close]') || e.target === $('#modal')) { closeModal(null); return; }
     const t = e.target.closest('[data-action]');
@@ -1661,6 +1780,7 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
 
   function onInput(e) {
     const t = e.target;
+    if (t.dataset.suggest && !suggestPicking) showSuggest(t);
     if (t.dataset.calc && t.dataset.field) {
       const target = getTarget(state.drafts[t.dataset.calc], t.dataset.cat, t.dataset.item);
       if (!target) return;
@@ -1697,20 +1817,17 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
   }
 
   function init() {
-    // category name suggestions
-    const dl = document.createElement('datalist');
-    dl.id = 'dl-categories';
-    dl.innerHTML = ['Examinations'].concat(CATEGORY_SUGGESTIONS).map(n => `<option value="${n}">`).join('');
-    document.body.appendChild(dl);
-
     document.addEventListener('click', onClick);
     document.addEventListener('input', onInput);
     document.addEventListener('change', onChange);
     document.addEventListener('keydown', (e) => {
+      if (suggestKey(e)) return;
       if (dropdownKey(e)) return;
       if (e.key === 'Escape' && !$('#modal').hidden) closeModal(null);
     });
-    window.addEventListener('resize', () => closeSelect(false));
+    window.addEventListener('resize', () => { closeSelect(false); closeSuggest(); });
+    document.addEventListener('focusin', (e) => { if (e.target.dataset && e.target.dataset.suggest) showSuggest(e.target); });
+    document.addEventListener('focusout', (e) => { if (openSuggest && e.target === openSuggest.input) closeSuggest(); });
     window.addEventListener('hashchange', () => { render(); window.scrollTo({ top: 0 }); });
     if (!location.hash) history.replaceState(null, '', '#/calculator/initial');
     render();
