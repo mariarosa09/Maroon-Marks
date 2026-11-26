@@ -170,7 +170,9 @@ the contents of `source/` (with `index.html` at the top level) to any static hos
 
 - **Netlify Drop:** drag the `source` folder onto app.netlify.com/drop.
 - **GitHub Pages:** push the files to a repository and enable Pages in *Settings → Pages*.
-- **Vercel** or **Cloudflare Pages:** upload the `source` folder as a static site.
+- **Vercel:** import the repository. `vercel.json` tells Vercel to serve the `source` folder, so you
+  don't need any extra settings.
+- **Cloudflare Pages:** set the build output directory to `source`.
 
 All paths are relative, so the app also works from a subfolder. You can also host `prototype/maroon-marks.html` on its own.
 
