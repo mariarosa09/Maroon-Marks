@@ -183,6 +183,38 @@ select {
 select::-ms-expand { display: none; }
 select option { color: var(--ink); background: #fff; }
 
+/* Custom dropdown (themed replacement for the OS-drawn select list) */
+.mm-select { position: relative; min-width: 0; }
+.mm-native { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.mm-trigger {
+  width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border: 1px solid #d9d1d1; border-radius: 9px; padding: 8px 11px; background: #fff; cursor: pointer;
+  text-align: left; font-size: 15px; transition: border-color .15s, box-shadow .15s;
+}
+.mm-trigger:hover { border-color: #c5b8b8; }
+.mm-trigger:focus-visible, .mm-select.open .mm-trigger { outline: none; border-color: var(--maroon); box-shadow: 0 0 0 3px rgba(122, 15, 20, .14); }
+.mm-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm-trigger.placeholder .mm-value { color: var(--ink-3); }
+.mm-trigger svg { width: 16px; height: 16px; flex: none; color: var(--maroon); transition: transform .15s; }
+.mm-select.open .mm-trigger svg { transform: rotate(180deg); }
+.mm-list {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; margin: 0; padding: 6px; list-style: none;
+  min-width: 100%; width: max-content; max-width: min(380px, calc(100vw - 24px)); max-height: 280px; overflow-y: auto;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(40, 10, 12, .16);
+  animation: fadeIn .12s ease;
+}
+.mm-list[hidden] { display: none; }
+.mm-select.up .mm-list { top: auto; bottom: calc(100% + 6px); }
+.mm-select.right .mm-list { left: auto; right: 0; }
+.mm-option {
+  display: flex; justify-content: space-between; align-items: center; gap: 14px;
+  padding: 8px 10px; border-radius: 8px; font-size: 14px; color: var(--ink); cursor: pointer; white-space: nowrap;
+}
+.mm-option:hover, .mm-option.active { background: var(--maroon-50); color: var(--maroon); }
+.mm-option.selected { font-weight: 700; color: var(--maroon); }
+.mm-option.selected::after { content: "✓"; font-weight: 800; }
+
+
 /* Checkboxes and radios */
 input[type=checkbox], input[type=radio] {
   -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin: 0; flex: none; cursor: pointer;
@@ -773,7 +805,7 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
   const newItem = (name = '') => ({ id: uid(), name, earned: '', total: '' });
   const newCat = (name = '') => ({ id: uid(), name, weight: '', items: [newItem()] });
   const newGpaRow = (gp = '') => ({ id: uid(), name: '', units: '3', gp });
-  const newInitialDraft = () => ({ method: 'nonzero', extra: false, cats: [newCat('')] });
+  const newInitialDraft = () => ({ method: 'nonzero', extra: false, cats: [newCat('Examinations')] }); // optional: weight is yours to set, and it can be removed
   const newPeriodDraft = (examName) => ({ method: 'nonzero', extra: false, exams: [newItem(examName)], cats: [] });
   const defaultState = () => ({
     settings: { rounding: 'strict' },
@@ -833,6 +865,160 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
       title, body: `<p>${message}</p>`,
       buttons: [{ label: 'Cancel', class: 'ghost', value: false }, { label: confirmLabel, class: 'danger', value: true }]
     });
+  }
+
+  /* ---------------------------------------------------------
+     5b. Custom dropdowns
+     The open list of a native <select> is drawn by the operating system
+     and cannot be styled, so each select gets a themed button + listbox.
+     The native select stays in the DOM (hidden) and keeps the value; picking
+     an option updates it and fires the usual input/change events.
+     --------------------------------------------------------- */
+  const CHEVRON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+  let openDropdown = null;
+
+  function enhanceSelects(root = document) {
+    root.querySelectorAll('select:not([data-enhanced])').forEach(sel => {
+      sel.dataset.enhanced = '1';
+      const wrap = document.createElement('div');
+      wrap.className = 'mm-select';
+      sel.parentNode.insertBefore(wrap, sel);
+      wrap.appendChild(sel); // keep the select first so label clicks never re-trigger the button
+      sel.classList.add('mm-native');
+      sel.tabIndex = -1;
+      sel.setAttribute('aria-hidden', 'true');
+      const labelEl = sel.closest('label');
+      const labelText = labelEl && labelEl.querySelector('span') ? labelEl.querySelector('span').textContent.trim() : '';
+      const listId = 'mm-' + uid();
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mm-trigger';
+      btn.setAttribute('aria-haspopup', 'listbox');
+      btn.setAttribute('aria-expanded', 'false');
+      btn.setAttribute('aria-controls', listId);
+      btn.innerHTML = `<span class="mm-value"></span>${CHEVRON}`;
+      const list = document.createElement('ul');
+      list.className = 'mm-list';
+      list.id = listId;
+      list.setAttribute('role', 'listbox');
+      if (labelText) list.setAttribute('aria-label', labelText);
+      list.hidden = true;
+      wrap.append(btn, list);
+      wrap._sync = () => {
+        const o = sel.options[sel.selectedIndex];
+        const text = o ? o.textContent : '';
+        btn.querySelector('.mm-value').textContent = text;
+        btn.classList.toggle('placeholder', !sel.value);
+        btn.setAttribute('aria-label', labelText ? `${labelText}: ${text}` : text);
+      };
+      wrap._sync();
+    });
+  }
+
+  function openSelect(wrap) {
+    closeSelect(false);
+    const sel = wrap.querySelector('select'), list = wrap.querySelector('.mm-list'), btn = wrap.querySelector('.mm-trigger');
+    list.innerHTML = Array.from(sel.options).map((o, i) => `<li role="option" class="mm-option ${i === sel.selectedIndex ? 'selected' : ''}" id="${list.id}-${i}" data-index="${i}" aria-selected="${i === sel.selectedIndex}">${esc(o.textContent)}</li>`).join('');
+    list.hidden = false;
+    wrap.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
+    // Open upwards / align right when there is no room below / to the right
+    const r = btn.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom;
+    wrap.classList.toggle('up', below < Math.min(280, list.scrollHeight) + 16 && r.top > below);
+    wrap.classList.toggle('right', r.left + list.offsetWidth > document.documentElement.clientWidth - 8);
+    openDropdown = wrap;
+    setActiveOption(wrap, Math.max(0, sel.selectedIndex));
+  }
+
+  function setActiveOption(wrap, i) {
+    const items = wrap.querySelectorAll('.mm-option');
+    if (!items.length) return;
+    i = Math.max(0, Math.min(items.length - 1, i));
+    items.forEach((li, k) => li.classList.toggle('active', k === i));
+    wrap._active = i;
+    const list = wrap.querySelector('.mm-list'), li = items[i];
+    if (li.offsetTop < list.scrollTop) list.scrollTop = li.offsetTop - 6;
+    else if (li.offsetTop + li.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = li.offsetTop + li.offsetHeight - list.clientHeight + 6;
+    wrap.querySelector('.mm-trigger').setAttribute('aria-activedescendant', li.id);
+  }
+
+  function closeSelect(focus) {
+    if (!openDropdown) return;
+    const wrap = openDropdown;
+    openDropdown = null;
+    wrap.classList.remove('open', 'up', 'right');
+    wrap.querySelector('.mm-list').hidden = true;
+    const btn = wrap.querySelector('.mm-trigger');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.removeAttribute('aria-activedescendant');
+    if (focus) btn.focus();
+  }
+
+  function chooseOption(wrap, i) {
+    const sel = wrap.querySelector('select');
+    const changed = sel.selectedIndex !== i;
+    sel.selectedIndex = i;
+    wrap._sync();
+    closeSelect(true);
+    if (changed) {
+      sel.dispatchEvent(new Event('input', { bubbles: true }));
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  /** Returns true when the click was handled by a dropdown. */
+  function dropdownClick(e) {
+    const opt = e.target.closest('.mm-option');
+    if (opt) { chooseOption(opt.closest('.mm-select'), +opt.dataset.index); return true; }
+    const trig = e.target.closest('.mm-trigger');
+    if (trig) {
+      if (e.detail === 0) return true; // keyboard "clicks" are handled in dropdownKey
+      const wrap = trig.parentNode;
+      if (openDropdown === wrap) closeSelect(true); else openSelect(wrap);
+      return true;
+    }
+    if (e.target.closest('.mm-select')) return true; // e.g. label click forwarded to the hidden select
+    if (openDropdown) closeSelect(false);
+    return false;
+  }
+
+  /** Keyboard support: arrows, Home/End, Enter/Space, Escape, Tab, type-to-jump. */
+  function dropdownKey(e) {
+    const trig = e.target.closest && e.target.closest('.mm-trigger');
+    if (!trig) return false;
+    const wrap = trig.parentNode;
+    const isOpen = openDropdown === wrap;
+    const n = wrap.querySelector('select').options.length;
+    switch (e.key) {
+      case 'ArrowDown': case 'ArrowUp':
+        e.preventDefault();
+        if (!isOpen) openSelect(wrap); else setActiveOption(wrap, wrap._active + (e.key === 'ArrowDown' ? 1 : -1));
+        return true;
+      case 'Home': case 'End':
+        if (isOpen) { e.preventDefault(); setActiveOption(wrap, e.key === 'Home' ? 0 : n - 1); }
+        return true;
+      case 'Enter': case ' ':
+        e.preventDefault();
+        if (isOpen) chooseOption(wrap, wrap._active); else openSelect(wrap);
+        return true;
+      case 'Escape':
+        if (isOpen) { e.preventDefault(); closeSelect(true); return true; }
+        return false;
+      case 'Tab':
+        if (isOpen) closeSelect(false);
+        return false;
+      default:
+        if (isOpen && e.key.length === 1) {
+          const opts = Array.from(wrap.querySelectorAll('.mm-option'));
+          const k = e.key.toLowerCase();
+          const start = wrap._active + 1;
+          const hit = opts.slice(start).concat(opts.slice(0, start)).find(li => li.textContent.trim().toLowerCase().startsWith(k));
+          if (hit) setActiveOption(wrap, +hit.dataset.index);
+          return true;
+        }
+        return false;
+    }
   }
 
   function gradeBadge(g) {
@@ -900,6 +1086,7 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
     $('#pageTitle').textContent = nav.label;
     document.title = `${nav.label} · Maroon Marks`;
     if (view === 'gpa') renderGPA(); else renderCalculator(sub);
+    enhanceSelects();
   }
 
   /* ---------------------------------------------------------
@@ -974,14 +1161,15 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
   }
 
   function catChips(calc) {
-    return `<div class="chips">${CATEGORY_SUGGESTIONS.map(n => `<button class="chip" data-action="add-cat" data-calc="${calc}" data-name="${n}">+ ${n}</button>`).join('')}</div>`;
+    const names = calc === 'initial' ? ['Examinations'].concat(CATEGORY_SUGGESTIONS) : CATEGORY_SUGGESTIONS;
+    return `<div class="chips">${names.map(n => `<button class="chip" data-action="add-cat" data-calc="${calc}" data-name="${n}">+ ${n}</button>`).join('')}</div>`;
   }
 
   function initialView() {
     const d = state.drafts.initial;
     return `<div class="calc-layout">
       <div class="stack"><div class="card">
-        <div class="card-head"><div><h2>Initial Grade Calculator</h2><p class="muted small">Give each category a weight (total 100%). A category's weight is split equally among its items — e.g. Quizzes 10% with 2 quizzes → each quiz is worth 5%.</p></div></div>
+        <div class="card-head"><div><h2>Initial Grade Calculator</h2><p class="muted small">Give each category a weight (total 100%). Examinations is optional here — set its weight, or remove it if your instructor doesn't include exams. A category's weight is split equally among its items — e.g. Quizzes 10% with 2 quizzes → each quiz is worth 5%.</p></div></div>
         ${methodPicker('initial', d.method)}
         <div class="section-label"><h3>Categories</h3>${extraToggle('initial', d)}</div>
         <div class="alloc" id="alloc-initial"></div>
@@ -1288,6 +1476,7 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
       ${scaleCard(false)}</div>
       <div class="card result-card" aria-live="polite" id="results-gpa"></div>
     </div>`;
+    enhanceSelects();
     updateGPA();
   }
 
@@ -1355,6 +1544,7 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
   }
 
   async function onClick(e) {
+    if (dropdownClick(e)) return;
     if (e.target.closest('[data-modal-close]') || e.target === $('#modal')) { closeModal(null); return; }
     const t = e.target.closest('[data-action]');
     if (!t) return;
@@ -1467,21 +1657,27 @@ tr.sub-row td:first-child { padding-left: 26px; color: var(--ink-2); }
     const a = t.dataset.action;
     if (a === 'set-method') { state.drafts[t.dataset.calc].method = t.value; render(); return; }
     if (a === 'toggle-extra') { state.drafts[t.dataset.calc].extra = t.checked; updateCalcResults(t.dataset.calc); return; }
-    if (t.dataset.wf === 'targetGP') { state.drafts.whatif.targetGP = t.value; state.drafts.whatif.targetPct = ''; render(); return; }
-    if (t.dataset.setting === 'rounding') { state.settings.rounding = ROUNDING[t.value] ? t.value : 'strict'; render(); }
+    // These re-render the view; put keyboard focus back on the same dropdown afterwards.
+    const refocus = (sel) => { const n = $(sel); const trig = n && n.parentNode.querySelector('.mm-trigger'); if (trig) trig.focus(); };
+    if (t.dataset.wf === 'targetGP') { state.drafts.whatif.targetGP = t.value; state.drafts.whatif.targetPct = ''; render(); refocus('[data-wf="targetGP"]'); return; }
+    if (t.dataset.setting === 'rounding') { state.settings.rounding = ROUNDING[t.value] ? t.value : 'strict'; render(); refocus('[data-setting="rounding"]'); }
   }
 
   function init() {
     // category name suggestions
     const dl = document.createElement('datalist');
     dl.id = 'dl-categories';
-    dl.innerHTML = CATEGORY_SUGGESTIONS.map(n => `<option value="${n}">`).join('');
+    dl.innerHTML = ['Examinations'].concat(CATEGORY_SUGGESTIONS).map(n => `<option value="${n}">`).join('');
     document.body.appendChild(dl);
 
     document.addEventListener('click', onClick);
     document.addEventListener('input', onInput);
     document.addEventListener('change', onChange);
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#modal').hidden) closeModal(null); });
+    document.addEventListener('keydown', (e) => {
+      if (dropdownKey(e)) return;
+      if (e.key === 'Escape' && !$('#modal').hidden) closeModal(null);
+    });
+    window.addEventListener('resize', () => closeSelect(false));
     window.addEventListener('hashchange', () => { render(); window.scrollTo({ top: 0 }); });
     if (!location.hash) history.replaceState(null, '', '#/calculator/initial');
     render();

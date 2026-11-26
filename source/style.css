@@ -173,6 +173,38 @@ select {
 select::-ms-expand { display: none; }
 select option { color: var(--ink); background: #fff; }
 
+/* Custom dropdown (themed replacement for the OS-drawn select list) */
+.mm-select { position: relative; min-width: 0; }
+.mm-native { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.mm-trigger {
+  width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border: 1px solid #d9d1d1; border-radius: 9px; padding: 8px 11px; background: #fff; cursor: pointer;
+  text-align: left; font-size: 15px; transition: border-color .15s, box-shadow .15s;
+}
+.mm-trigger:hover { border-color: #c5b8b8; }
+.mm-trigger:focus-visible, .mm-select.open .mm-trigger { outline: none; border-color: var(--maroon); box-shadow: 0 0 0 3px rgba(122, 15, 20, .14); }
+.mm-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm-trigger.placeholder .mm-value { color: var(--ink-3); }
+.mm-trigger svg { width: 16px; height: 16px; flex: none; color: var(--maroon); transition: transform .15s; }
+.mm-select.open .mm-trigger svg { transform: rotate(180deg); }
+.mm-list {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; margin: 0; padding: 6px; list-style: none;
+  min-width: 100%; width: max-content; max-width: min(380px, calc(100vw - 24px)); max-height: 280px; overflow-y: auto;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(40, 10, 12, .16);
+  animation: fadeIn .12s ease;
+}
+.mm-list[hidden] { display: none; }
+.mm-select.up .mm-list { top: auto; bottom: calc(100% + 6px); }
+.mm-select.right .mm-list { left: auto; right: 0; }
+.mm-option {
+  display: flex; justify-content: space-between; align-items: center; gap: 14px;
+  padding: 8px 10px; border-radius: 8px; font-size: 14px; color: var(--ink); cursor: pointer; white-space: nowrap;
+}
+.mm-option:hover, .mm-option.active { background: var(--maroon-50); color: var(--maroon); }
+.mm-option.selected { font-weight: 700; color: var(--maroon); }
+.mm-option.selected::after { content: "✓"; font-weight: 800; }
+
+
 /* Checkboxes and radios */
 input[type=checkbox], input[type=radio] {
   -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin: 0; flex: none; cursor: pointer;

@@ -13,6 +13,7 @@ Built with HTML5, CSS3 and vanilla JavaScript. No libraries and no internet conn
   You can use Non-Zero-Based (50% Base, the default) or Zero-Based grading.
 - **Equal split of weights:** each category's weight is divided equally among its items.
   For example, Quizzes at 10% with 2 quizzes makes each quiz worth 5% of the grade.
+- Initial Grade starts with an optional Examinations category: set its weight, or remove it.
 - Midterm/Final: Major Examinations is a fixed 60% category (split equally among the exams). Your own
   categories share the remaining 40%. Press **Save** in the Midterm or Final tab to fill that grade into
   the Final Subject Grade tab (and the What-If midterm).
